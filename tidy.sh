@@ -1,0 +1,1 @@
+clang-tidy src/*.cpp include/*.h tests/*.cpp -- -Iinclude
