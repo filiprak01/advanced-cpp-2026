@@ -1,9 +1,14 @@
 # Gather all test files
 file(GLOB TEST_SOURCES "*.cpp")
 
+# Gather source files
+file(GLOB SRC_SOURCES "../src/*.cpp")
+
 # Create executable for tests
-add_executable(runTests ${TEST_SOURCES})
-target_include_directories(runTests PRIVATE ../include)
+add_executable(runTests ${TEST_SOURCES} ${SRC_SOURCES})
+
+# Include directories for headers
+target_include_directories(runTests PRIVATE ../src)  # <- tutaj nagłówki
 
 # Link Google Test and pthread (Linux)
 find_package(GTest REQUIRED)
