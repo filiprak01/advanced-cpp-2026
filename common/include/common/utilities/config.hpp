@@ -41,6 +41,7 @@ public:
     bool isConsoleLoggingEnabled() const { return enableConsoleLogging; }
 
 private:
+    // readonly server configuration parameters
     std::string host;
     int port;
     int maxConnections;
@@ -88,6 +89,7 @@ public:
     bool isShowConnectionStatusEnabled() const { return showConnectionStatus; }
 
 private:
+    // readonly client configuration parameters
     int serverIp;
     int serverPort;
     bool autoReconnect;      // 0 = false, 1 = true

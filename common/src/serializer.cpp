@@ -1,4 +1,5 @@
-#include "serializer.hpp"
+#include <common/utilities/serializer.hpp>
+#include <common/messages/message.hpp>
 
 json Serializer::serialize(const Message &message)
 {
