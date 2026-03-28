@@ -1,20 +1,36 @@
-cmake_minimum_required(VERSION 3.20)
-project(PWChat LANGUAGES CXX)
+cmake_minimum_required(VERSION 3.22)
+project(AdvancedCPP2026 VERSION 1.0 LANGUAGES CXX)
 
-set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+# C++ standard
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# Find Qt6 modules
-find_package(Qt6 REQUIRED COMPONENTS Core Widgets Gui)
+# Use g++ explicitly if needed
+if(NOT CMAKE_CXX_COMPILER)
+    set(CMAKE_CXX_COMPILER g++)
+endif()
 
-# Gather source files
-file(GLOB SRC_FILES src/*.cpp)
+# Include vcpkg toolchain if present
+if(DEFINED ENV{VCPKG_ROOT})
+    set(CMAKE_TOOLCHAIN_FILE "$ENV{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake" CACHE STRING "")
+endif()
 
-# Main executable
-add_executable(PWChat ${SRC_FILES})
-target_include_directories(PWChat PRIVATE ../include)
-target_link_libraries(PWChat Qt6::Core Qt6::Widgets Qt6::Gui)
+# Find Qt6
+find_package(Qt6 REQUIRED COMPONENTS Core Gui Widgets)
 
-# Enable testing
+# ---- SOURCES ----
+file(GLOB_RECURSE SRC_FILES src/*.cpp)
+file(GLOB_RECURSE HEADER_FILES src/*.hpp)
+
+# ---- LIBRARY ----
+add_library(coreLib STATIC ${SRC_FILES} ${HEADER_FILES})
+target_include_directories(coreLib PUBLIC include src)
+target_link_libraries(coreLib PRIVATE Qt6::Core Qt6::Gui Qt6::Widgets)
+
+# ---- MAIN EXECUTABLE ----
+add_executable(PWChat src/main.cpp)
+target_link_libraries(PWChat PRIVATE coreLib)
+
+# ---- TESTING ----
 enable_testing()
 add_subdirectory(tests)
