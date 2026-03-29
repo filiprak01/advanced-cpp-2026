@@ -21,7 +21,12 @@ public:
           maxMessageLength(maxMessageLength), maxMessagesPerSecond(maxMessagesPerSecond),
           maxEventQueueSize(maxEventQueueSize), eventProcessingThreadPoolSize(eventProcessingThreadPoolSize),
           logLevel(logLevel), enableConsoleLogging(enableConsoleLogging) {}
-    std::string getHost() const { return host; }
+    ServerConfig readFromFile(const std::string &filename);
+    bool exportToFile(const std::string &filename); // Placeholder for reading config from a file
+    std::string getHost() const
+    {
+        return host;
+    }
     int getPort() const { return port; }
     int getMaxConnections() const { return maxConnections; }
     int getSessionTimeout() const { return sessionTimeout; }
@@ -79,6 +84,8 @@ public:
           reconnectIntervalMs(reconnectIntervalMs), maxMessageLength(maxMessageLength),
           sendOnEnter(sendOnEnter), messageCacheSize(messageCacheSize),
           showConnectionStatus(showConnectionStatus) {}
+    ClientConfig readFromFile(const std::string &filename);
+    bool exportToFile(const std::string &filename); // Placeholder for reading config from a file
     int getServerIp() const { return serverIp; }
     int getServerPort() const { return serverPort; }
     bool isAutoReconnectEnabled() const { return autoReconnect; }
