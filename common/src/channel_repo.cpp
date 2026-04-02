@@ -8,11 +8,11 @@ bool ChannelRepository::channelExists(const int &channelId) const
 bool ChannelRepository::addChannel(const Channel &channel)
 {
     std::unique_lock<std::shared_mutex> lock(mutex);
-    if (channelExists(channel.getId()))
+    if (channelExists(channel.getChannelId()))
     {
         return false;
     }
-    channels[channel.getId()] = channel;
+    channels[channel.getChannelId()] = channel;
     return true;
 }
 bool ChannelRepository::removeChannel(const int &channelId)

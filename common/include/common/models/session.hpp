@@ -4,6 +4,7 @@
 #include <chrono>
 class Session
 {
+public:
     Session() = default;
     Session(const int &sessionId, const int &userId, const std::chrono::_V2::steady_clock::time_point &lastActive) : sessionId(sessionId), userId(userId), lastActive(lastActive) {}
     const int &getSessionId() const

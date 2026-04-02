@@ -15,11 +15,16 @@ public:
     {
         return passwordHash;
     }
+    const std::string &getSalt() const
+    {
+        return salt;
+    }
     bool operator==(const User &other) const;
 
 private:
     std::string username;
     std::string passwordHash;
+    std::string salt;
 };
 
 namespace std
