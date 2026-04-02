@@ -6,7 +6,7 @@ class User
 {
 public:
     User() = default;
-    User(const std::string &username, const std::string &email) : username(username), passwordHash(email) {}
+    User(const std::string &username, const std::string &passworHash, const std::string &base64salt) : username(username), passwordHash(passwordHash), base64salt(base64salt) {}
     const std::string &getUsername() const
     {
         return username;
@@ -15,16 +15,16 @@ public:
     {
         return passwordHash;
     }
-    const std::string &getSalt() const
+    const std::string &getBase64salt() const
     {
-        return salt;
+        return base64salt;
     }
     bool operator==(const User &other) const;
 
 private:
     std::string username;
     std::string passwordHash;
-    std::string salt;
+    std::string base64salt;
 };
 
 namespace std
