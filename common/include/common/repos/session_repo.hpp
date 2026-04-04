@@ -12,6 +12,7 @@ public:
     bool addSession(const Session &session);
     bool removeSession(const int &sessionId);
     Session getSession(const int &sessionId);
+    bool updateSession(const Session &newSession, const int &sessionId);
     bool sessionExists(const int &sessionId) const;
 
 private:

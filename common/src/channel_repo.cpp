@@ -1,6 +1,6 @@
 #include <common/repos/channel_repo.hpp>
 
-bool ChannelRepository::channelExists(const int &channelId) const
+bool ChannelRepository::channelExists(int channelId) const
 {
     std::shared_lock<std::shared_mutex> lock(mutex);
     return channels.find(channelId) != channels.end();
@@ -8,29 +8,27 @@ bool ChannelRepository::channelExists(const int &channelId) const
 bool ChannelRepository::addChannel(const Channel &channel)
 {
     std::unique_lock<std::shared_mutex> lock(mutex);
-    if (channelExists(channel.getChannelId()))
-    {
-        return false;
-    }
     channels[channel.getChannelId()] = channel;
     return true;
 }
-bool ChannelRepository::removeChannel(const int &channelId)
+bool ChannelRepository::removeChannel(int channelId)
 {
     std::unique_lock<std::shared_mutex> lock(mutex);
-    if (!channelExists(channelId))
-    {
-        return false;
-    }
     channels.erase(channelId);
     return true;
 }
-Channel ChannelRepository::getChannel(const int &channelId)
+Channel ChannelRepository::getChannel(int channelId)
 {
     std::shared_lock<std::shared_mutex> lock(mutex);
-    if (!channelExists(channelId))
-    {
-        return Channel();
-    }
     return channels[channelId];
+}
+bool ChannelRepository::isChannelActive(int channelId) const
+{
+    std::shared_lock<std::shared_mutex> lock(mutex);
+    return channels.find(channelId)->second.getIsActive();
+}
+bool ChannelRepository::isChannelPrivate(int channelId) const
+{
+    std::shared_lock<std::shared_mutex> lock(mutex);
+    return channels.find(channelId)->second.getIsPrivate();
 }

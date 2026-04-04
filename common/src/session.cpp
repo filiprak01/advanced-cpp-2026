@@ -1,9 +1,11 @@
 #include <common/models/session.hpp>
 
-bool Session::updateSession()
+Session Session::withNewLastActive(const std::chrono::time_point<std::chrono::steady_clock> &newDeadline) const
 {
-    lastActive = std::chrono::steady_clock::now();
-    return true;
+    return Session(
+        this->sessionId,
+        this->userId,
+        newDeadline);
 }
 
 bool Session::operator==(const Session &other) const

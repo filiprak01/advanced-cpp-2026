@@ -8,28 +8,23 @@ bool SessionRepository::sessionExists(const int &sessionId) const
 bool SessionRepository::addSession(const Session &session)
 {
     std::unique_lock<std::shared_mutex> lock(mutex);
-    if (sessionExists(session.getSessionId()))
-    {
-    }
     sessions[session.getSessionId()] = session;
     return true;
 }
 bool SessionRepository::removeSession(const int &sessionId)
 {
     std::unique_lock<std::shared_mutex> lock(mutex);
-    if (!sessionExists(sessionId))
-    {
-        return false;
-    }
     sessions.erase(sessionId);
     return true;
 }
 Session SessionRepository::getSession(const int &sessionId)
 {
     std::shared_lock<std::shared_mutex> lock(mutex);
-    if (!sessionExists(sessionId))
-    {
-        return Session();
-    }
     return sessions[sessionId];
+}
+bool SessionRepository::updateSession(const Session &newSession, const int &sessionId)
+{
+    std::unique_lock<std::shared_mutex> lock(mutex);
+    sessions[sessionId] = newSession;
+    return true;
 }

@@ -1,33 +1,53 @@
 #include <common/models/channel.hpp>
 
-const bool Channel::addMessageId(const int &messageId)
+const Channel Channel::addMessageId(int messageId) const
 {
+
     if (std::find(messageIds.begin(), messageIds.end(), messageId) != messageIds.end())
     {
-        return false; // Message ID already exists
+        return *this; // Message ID already exists
     }
-    messageIds.push_back(messageId);
-    return true;
+    Channel copy = *this;
+    copy.messageIds.push_back(messageId);
+    return copy;
 }
-const bool Channel::addUserId(const int &userId)
+const Channel Channel::addUserId(int userId) const
 {
-    return userIds.insert(userId).second; // Returns true if insertion took place
+    Channel copy = *this;
+    copy.userIds.insert(userId);
+    return copy;
 }
-const bool Channel::removeUserId(const int &userId)
+const Channel Channel::removeUserId(int userId) const
 {
-    return userIds.erase(userId) > 0; // Returns true if an element was removed
+    Channel copy = *this;
+    copy.userIds.erase(userId);
+    return copy;
 }
-const bool Channel::removeMessageId(const int &messageId)
+const Channel Channel::removeMessageId(int messageId) const
 {
     auto it = std::find(messageIds.begin(), messageIds.end(), messageId);
-    if (it != messageIds.end())
+    if (it == messageIds.end())
     {
-        messageIds.erase(it);
-        return true; // Message ID removed
+        return *this;
     }
-    return false; // Message ID not found
+    Channel copy = *this;
+
+    copy.messageIds.erase(std::remove(copy.messageIds.begin(), copy.messageIds.end(), messageId), copy.messageIds.end());
+    return copy;
 }
 const bool Channel::operator==(const Channel &other) const
 {
     return channelId == other.getChannelId();
+}
+const Channel Channel::withName(const std::string &newName) const
+{
+    Channel copy = *this;
+    copy.name = newName;
+    return copy;
+}
+const Channel Channel::toggleActive() const
+{
+    Channel copy = *this;
+    copy.isActive = !copy.isActive;
+    return copy;
 }

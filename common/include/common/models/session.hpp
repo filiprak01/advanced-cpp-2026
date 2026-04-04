@@ -6,7 +6,8 @@ class Session
 {
 public:
     Session() = default;
-    Session(const int &sessionId, const int &userId, const std::chrono::_V2::steady_clock::time_point &lastActive) : sessionId(sessionId), userId(userId), lastActive(lastActive) {}
+    Session(const int &sessionId, const int &userId, const std::chrono::time_point<std::chrono::steady_clock> &lastActive) : sessionId(sessionId), userId(userId), lastActive(lastActive) {}
+    Session withNewLastActive(const std::chrono::time_point<std::chrono::steady_clock> &newDeadline) const;
     const int &getSessionId() const
     {
         return sessionId;
@@ -15,15 +16,14 @@ public:
     {
         return userId;
     }
-    const std::chrono::_V2::steady_clock::time_point &getLastActive() const
+    const std::chrono::time_point<std::chrono::steady_clock> &getLastActive() const
     {
         return lastActive;
     }
     bool operator==(const Session &other) const;
-    bool updateSession();
 
 private:
     int sessionId;
     int userId;
-    std::chrono::_V2::steady_clock::time_point lastActive;
+    std::chrono::time_point<std::chrono::steady_clock> lastActive;
 };
