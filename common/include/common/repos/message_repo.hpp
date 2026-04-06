@@ -6,12 +6,13 @@
 
 class MessageRepository
 {
-public:
     MessageRepository() = default;
+public:
     bool addMessage(const Message &message);
-    bool removeMessage(const int &messageId);
-    Message getMessage(const int &messageId);
-    bool messageExists(const int &messageId) const;
+    bool removeMessage(int messageId);
+    Message getMessage(int messageId);
+    bool messageExists(int messageId);
+    bool updateMessage(const Message &message);
 
 private:
     mutable std::shared_mutex mutex;

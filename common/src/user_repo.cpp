@@ -35,3 +35,12 @@ User UserRepository::getUser(const std::string &username)
     }
     return users[username];
 }
+std::vector<User> getAllUsers() const
+{
+    std::vector<User> users;
+    std::shared_lock<std::shared_mutex> lock(mutex);
+    for (auto &userRepoEntry : users)
+    {
+        users.push_back(userRepoEntry.second);
+    }
+}

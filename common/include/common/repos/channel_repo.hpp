@@ -14,7 +14,7 @@ public:
     bool channelExists(int channelId) const;
     bool isChannelActive(int channelId) const;
     bool isChannelPrivate(int channelId) const;
-    bool updateChannel(const Channel &newChannel, int channelId);
+    bool updateChannel(const Channel &newChanneld);
 
 private:
     mutable std::shared_mutex mutex;

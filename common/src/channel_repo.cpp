@@ -32,3 +32,9 @@ bool ChannelRepository::isChannelPrivate(int channelId) const
     std::shared_lock<std::shared_mutex> lock(mutex);
     return channels.find(channelId)->second.getIsPrivate();
 }
+bool ChannelRepository::updateChannel(const Channel &channel)
+{
+    std::unique_lock<std::shared_mutex> lock(mutex);
+    channels[channel.getChannelId()] = channel;
+    return true;
+}

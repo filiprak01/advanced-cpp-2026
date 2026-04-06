@@ -4,7 +4,7 @@
 #include <unordered_map>
 #include <shared_mutex>
 #include <mutex>
-
+#include <vector>
 class UserRepository
 {
     UserRepository() = default;
@@ -15,6 +15,7 @@ public:
     bool removeUser(const std::string &username);
     User getUser(const std::string &username);
     bool userExists(const std::string &username) const;
+    std::vector<User> getAllUsers() const;
 
 private:
     mutable std::shared_mutex mutex;

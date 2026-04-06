@@ -11,15 +11,9 @@ public:
     Message(
         const int &id,
         const std::string &content,
-        const std::string &sender,
-        const int &receiverChannelId,
-        const std::string &timestamp,
-        const std::string &channel_id) : id(id), content(content), sender(sender), timestamp(timestamp), receiverChannelId(receiverChannelId) {}
+        const std::string &ssenderName,
+        const std::chrono::steady_clock::time_point &timestamp) : id(id), content(content), senderName(senderName), timestamp(timestamp) {}
     // getters for data members
-    const int &getChannelId() const
-    {
-        return receiverChannelId;
-    }
     const int &getId() const
     {
         return id;
@@ -28,22 +22,22 @@ public:
     {
         return content;
     }
-    const std::string &getSender() const
+    const std::string &getSenderName() const
     {
-        return sender;
+        return senderName;
     }
-    const std::string &getTimestamp() const
+    const std::chrono::steady_clock::time_point &getTimestamp() const
     {
         return timestamp;
     }
     bool operator==(const Message &other) const;
+    Message withContent(const std::string &newContent) const;
 
 private:
     int id;
     std::string content;
-    std::string sender;
-    int receiverChannelId;
-    std::string timestamp;
+    std::string senderName;
+    std::chrono::steady_clock::time_point timestamp;
 };
 namespace std
 {
