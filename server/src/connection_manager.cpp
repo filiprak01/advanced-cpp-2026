@@ -3,6 +3,7 @@
 #include <netinet/in.h>
 #include <unistd.h>
 #include <cstring>
+#include <iostream>
 
 int ConnectionManager::acceptConnection()
 {
@@ -13,6 +14,7 @@ int ConnectionManager::acceptConnection()
     {
         return -1;
     }
+    std::cout << "Accepted new connection: " << client_fd << std::endl;
     connectionMap[client_fd] = "";
     return client_fd;
 }
@@ -26,6 +28,7 @@ bool ConnectionManager::closeConnection(int client_fd)
     }
     close(client_fd);
     connectionMap.erase(it);
+    std::cout << "Closed connection: " << client_fd << std::endl;
     return true;
 }
 
@@ -40,25 +43,31 @@ bool ConnectionManager::sendMessage(int client_fd, const std::string &message)
     {
         return false;
     }
+    std::cout << "Sending message to " << client_fd << ": " << message << std::endl;
     ssize_t sent = send(client_fd, message.c_str(), message.size(), 0);
     return sent == static_cast<ssize_t>(message.size());
 }
 
 std::string ConnectionManager::receiveMessage(int client_fd)
 {
-    uint32_t len = 0;
-    ssize_t received = recv(client_fd, &len, sizeof(len), MSG_WAITALL);
-    if (received != sizeof(len) || len == 0 || len > 65536)
+    std::string message;
+    char c;
+    ssize_t received;
+    while (true)
     {
-        return "";
+        received = recv(client_fd, &c, 1, 0);
+        if (received <= 0)
+        {
+            std::cout << "Client fd=" << client_fd << " disconnected" << std::endl;
+            closeConnection(client_fd);
+            return "";
+        }
+        if (c == '\n')
+            break;
+        message += c;
     }
-    std::string buffer(len, '\0');
-    received = recv(client_fd, &buffer[0], len, MSG_WAITALL);
-    if (received != static_cast<ssize_t>(len))
-    {
-        return "";
-    }
-    return buffer;
+    std::cout << "Received message from " << client_fd << ": " << message << std::endl;
+    return message;
 }
 bool ConnectionManager::updateConnectionMapping(int client_fd, const std::string &userName)
 {
