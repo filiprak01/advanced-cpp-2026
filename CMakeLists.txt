@@ -1,9 +1,10 @@
 cmake_minimum_required(VERSION 3.22)
-project(AdvancedCPP2026 VERSION 1.0 LANGUAGES CXX)
+project(PWChat VERSION 1.0 LANGUAGES CXX)
 
 # C++ standard
-set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 # Use g++ explicitly if needed
 if(NOT CMAKE_CXX_COMPILER)
@@ -15,22 +16,15 @@ if(DEFINED ENV{VCPKG_ROOT})
     set(CMAKE_TOOLCHAIN_FILE "$ENV{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake" CACHE STRING "")
 endif()
 
-# Find Qt6
-find_package(Qt6 REQUIRED COMPONENTS Core Gui Widgets)
+# ---- BIBLIOTEKI ----
+add_subdirectory(common)
+add_subdirectory(server)
 
-# ---- SOURCES ----
-file(GLOB_RECURSE SRC_FILES src/*.cpp)
-file(GLOB_RECURSE HEADER_FILES src/*.hpp)
-
-# ---- LIBRARY ----
-add_library(coreLib STATIC ${SRC_FILES} ${HEADER_FILES})
-target_include_directories(coreLib PUBLIC include src)
-target_link_libraries(coreLib PRIVATE Qt6::Core Qt6::Gui Qt6::Widgets)
-
-# ---- MAIN EXECUTABLE ----
+# ---- GŁÓWNY PLIK WYKONYWALNY ----
 add_executable(PWChat src/main.cpp)
-target_link_libraries(PWChat PRIVATE coreLib)
+target_include_directories(PWChat PRIVATE src)
+target_link_libraries(PWChat PRIVATE serverLib)
 
-# ---- TESTING ----
+# ---- TESTY ----
 enable_testing()
 add_subdirectory(tests)

@@ -6,8 +6,9 @@
 
 class MessageRepository
 {
-    MessageRepository() = default;
 public:
+    MessageRepository() = default;
+
     bool addMessage(const Message &message);
     bool removeMessage(int messageId);
     Message getMessage(int messageId);

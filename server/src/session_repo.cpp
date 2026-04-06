@@ -1,4 +1,4 @@
-#include <common/repos/session_repo.hpp>
+#include <server/repos/session_repo.hpp>
 
 bool SessionRepository::sessionExists(const int &sessionId) const
 {

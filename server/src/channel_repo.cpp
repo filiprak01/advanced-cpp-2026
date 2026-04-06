@@ -1,4 +1,4 @@
-#include <common/repos/channel_repo.hpp>
+#include <server/repos/channel_repo.hpp>
 
 bool ChannelRepository::channelExists(int channelId) const
 {

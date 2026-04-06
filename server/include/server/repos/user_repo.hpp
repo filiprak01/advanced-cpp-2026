@@ -7,10 +7,9 @@
 #include <vector>
 class UserRepository
 {
+public:
     UserRepository() = default;
 
-public:
-    // implement check for existing and CRUD operations for users
     bool addUser(const User &user);
     bool removeUser(const std::string &username);
     User getUser(const std::string &username);

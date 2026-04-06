@@ -1,5 +1,5 @@
 #pragma once
-#include <common/repos/channel_repo.hpp>
+#include <server/repos/channel_repo.hpp>
 #include <unordered_map>
 #include <vector>
 class ChannelManager

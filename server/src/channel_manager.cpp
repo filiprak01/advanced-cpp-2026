@@ -65,7 +65,7 @@ bool ChannelManager::removeUserFromChannel(int channelId, int userId)
     Channel updatedChannel = channel.removeUserId(userId);
     auto &channels = channelMap[userId];
     channels.erase(std::remove(channels.begin(), channels.end(), channelId), channels.end());
-    return channelRepository.updateChannel(updatedChannel, channelId);
+    return channelRepository.updateChannel(updatedChannel);
 }
 bool ChannelManager::addUserToChannel(int channelId, int userId)
 {
@@ -84,7 +84,7 @@ bool ChannelManager::addUserToChannel(int channelId, int userId)
     }
     Channel updatedChannel = channel.addUserId(userId);
     channelMap[userId].push_back(channelId);
-    return channelRepository.updateChannel(updatedChannel, channelId);
+    return channelRepository.updateChannel(updatedChannel);
 }
 bool ChannelManager::editChannelName(int channelId, const std::string &newName)
 {
@@ -94,7 +94,7 @@ bool ChannelManager::editChannelName(int channelId, const std::string &newName)
     }
     Channel channel = channelRepository.getChannel(channelId);
     Channel updatedChannel = channel.withName(newName);
-    return channelRepository.updateChannel(updatedChannel, channelId);
+    return channelRepository.updateChannel(updatedChannel);
 }
 std::vector<Channel> ChannelManager::getUserActiveChannels(int userId)
 {
@@ -130,5 +130,5 @@ bool ChannelManager::deactivateChannel(int channelId)
         return true;
     }
     Channel updatedChannel = channel.toggleActive();
-    return channelRepository.updateChannel(updatedChannel, channelId);
+    return channelRepository.updateChannel(updatedChannel);
 }

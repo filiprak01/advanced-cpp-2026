@@ -1,4 +1,4 @@
-#include <common/repos/message_repo.hpp>
+#include <server/repos/message_repo.hpp>
 bool MessageRepository::messageExists(int messageId)
 {
     std::shared_lock<std::shared_mutex> lock(mutex);

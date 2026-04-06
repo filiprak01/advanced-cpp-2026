@@ -1,14 +1,13 @@
 #include <common/utilities/serializer.hpp>
-#include <common/messages/message.hpp>
+#include <common/models/message.hpp>
 
 json Serializer::serialize(const Message &message)
 {
     json j;
+    j["id"] = message.getId();
     j["content"] = message.getContent();
-    j["sender"] = message.getSender();
-    j["receiver"] = message.getReceiver();
-    j["timestamp"] = message.getTimestamp();
-    j["channel_id"] = message.getChannelId();
+    j["senderName"] = message.getSenderName();
+    // TODO: zserializować timestamp (steady_clock::time_point)
     return j;
 }
 json Serializer::serialize(const ServerConfig &config)
@@ -50,12 +49,12 @@ json Serializer::serialize(const ClientConfig &config)
 
 Message Serializer::deserializeMsg(const json &j)
 {
+    int id = j.at("id").get<int>();
     std::string content = j.at("content").get<std::string>();
-    std::string sender = j.at("sender").get<std::string>();
-    std::string receiver = j.at("receiver").get<std::string>();
-    std::string timestamp = j.at("timestamp").get<std::string>();
-    std::string channel_id = j.at("channel_id").get<std::string>();
-    return Message(content, sender, receiver, timestamp, channel_id);
+    std::string senderName = j.at("senderName").get<std::string>();
+    // TODO: zdeserializować timestamp
+    auto timestamp = std::chrono::steady_clock::now();
+    return Message(id, content, senderName, timestamp);
 }
 ServerConfig Serializer::deserializeServerConfig(const json &j)
 {

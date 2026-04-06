@@ -1,4 +1,4 @@
-#include <common/repos/user_repo.hpp>
+#include <server/repos/user_repo.hpp>
 
 bool UserRepository::userExists(const std::string &username) const
 {
@@ -9,7 +9,7 @@ bool UserRepository::userExists(const std::string &username) const
 bool UserRepository::addUser(const User &user)
 {
     std::unique_lock<std::shared_mutex> lock(mutex);
-    if (userExists(user.getUsername()))
+    if (users.find(user.getUsername()) != users.end())
     {
         return false;
     }
@@ -19,28 +19,31 @@ bool UserRepository::addUser(const User &user)
 bool UserRepository::removeUser(const std::string &username)
 {
     std::unique_lock<std::shared_mutex> lock(mutex);
-    if (!userExists(username))
+    auto it = users.find(username);
+    if (it == users.end())
     {
         return false;
     }
-    users.erase(username);
+    users.erase(it);
     return true;
 }
 User UserRepository::getUser(const std::string &username)
 {
     std::shared_lock<std::shared_mutex> lock(mutex);
-    if (!userExists(username))
+    auto it = users.find(username);
+    if (it == users.end())
     {
         return User();
     }
-    return users[username];
+    return it->second;
 }
-std::vector<User> getAllUsers() const
+std::vector<User> UserRepository::getAllUsers() const
 {
-    std::vector<User> users;
+    std::vector<User> result;
     std::shared_lock<std::shared_mutex> lock(mutex);
-    for (auto &userRepoEntry : users)
+    for (const auto &userRepoEntry : users)
     {
-        users.push_back(userRepoEntry.second);
+        result.push_back(userRepoEntry.second);
     }
+    return result;
 }

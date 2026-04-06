@@ -6,9 +6,9 @@
 
 class SessionRepository
 {
+public:
     SessionRepository() = default;
 
-public:
     bool addSession(const Session &session);
     bool removeSession(const int &sessionId);
     Session getSession(const int &sessionId);

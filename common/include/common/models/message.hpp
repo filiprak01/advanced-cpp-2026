@@ -11,7 +11,7 @@ public:
     Message(
         const int &id,
         const std::string &content,
-        const std::string &ssenderName,
+        const std::string &senderName,
         const std::chrono::steady_clock::time_point &timestamp) : id(id), content(content), senderName(senderName), timestamp(timestamp) {}
     // getters for data members
     const int &getId() const

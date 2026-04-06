@@ -1,6 +1,6 @@
 #pragma once
 #include <server/auth/password_hasher.hpp>
-#include <common/repos/user_repo.hpp>
+#include <server/repos/user_repo.hpp>
 
 class AuthManager
 {

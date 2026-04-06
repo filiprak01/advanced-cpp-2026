@@ -1,7 +1,7 @@
 #pragma once
-#include <common/repos/message_repo.hpp>
-#include <common/repos/user_repo.hpp>
-#include <common/repos/channel_repo.hpp>
+#include <server/repos/message_repo.hpp>
+#include <server/repos/user_repo.hpp>
+#include <server/repos/channel_repo.hpp>
 #include <unordered_map>
 #include <optional>
 class MessageManager

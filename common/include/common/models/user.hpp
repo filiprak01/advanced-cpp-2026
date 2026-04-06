@@ -6,7 +6,7 @@ class User
 {
 public:
     User() = default;
-    User(const std::string &username, const std::string &passworHash, const std::string &base64salt) : username(username), passwordHash(passwordHash), base64salt(base64salt) {}
+    User(const std::string &username, const std::string &passwordHash, const std::string &base64salt) : username(username), passwordHash(passwordHash), base64salt(base64salt) {}
     const std::string &getUsername() const
     {
         return username;

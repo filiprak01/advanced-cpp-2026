@@ -1,5 +1,5 @@
 #pragma once
-#include <common/repos/session_repo.hpp>
+#include <server/repos/session_repo.hpp>
 #include <unordered_map>
 class SessionManager
 {
