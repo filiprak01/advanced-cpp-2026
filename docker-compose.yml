@@ -1,0 +1,27 @@
+services:
+  pwchat:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: pwchat-server:latest
+    container_name: pwchat-server
+    restart: unless-stopped
+    ports:
+      - "8090:8090"
+    volumes:
+      - config-data:/opt/app/config
+      - repo-data:/opt/app/repo
+
+volumes:
+  config-data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${CONFIG_PATH:-./config}
+  repo-data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${REPO_PATH:-./repo}

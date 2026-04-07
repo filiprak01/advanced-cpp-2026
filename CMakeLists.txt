@@ -24,6 +24,9 @@ add_subdirectory(server)
 add_executable(PWChat src/main.cpp)
 target_include_directories(PWChat PRIVATE src)
 target_link_libraries(PWChat PRIVATE serverLib)
+set_target_properties(PWChat PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/server
+)
 
 # ---- TESTY ----
 enable_testing()
