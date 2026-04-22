@@ -1,109 +1,249 @@
 #include <server/core/channel_manager.hpp>
 
-bool ChannelManager::createPublicChannel(const std::string &name, const std::vector<std::string> &userNames)
+#include <algorithm>
+#include <unordered_set>
+
+namespace
 {
-    Channel newChannel = Channel(
-        nextChannelId++,
-        name,
-        std::vector<int>{},
-        std::unordered_set<std::string>(userNames.begin(), userNames.end()), false);
-    if (channelRepository.channelExists(newChannel.getChannelId()))
+    bool isMember(const Channel &channel, const std::string &userName)
     {
-        return false;
+        return channel.getUserIds().find(userName) != channel.getUserIds().end();
     }
-    for (auto &userName : userNames)
-    {
-        channelMap[userName].push_back(newChannel.getChannelId());
-    }
-    return channelRepository.addChannel(newChannel);
-}
-bool ChannelManager::createPrivateConversation(const std::vector<std::string> &userNames)
+} // namespace
+
+DomainResult ChannelManager::createPublicChannel(const std::string &requestorName, const std::string &name, const std::vector<std::string> &userNames, Channel *createdChannel)
 {
-    if (userNames.size() != 2)
+    if (requestorName.empty())
     {
-        return false;
+        return DomainResult::domainError(errors::Code::unauthorized);
     }
-    for (const auto &userName : userNames)
+
+    std::unordered_set<std::string> members(userNames.begin(), userNames.end());
+    members.insert(requestorName);
+
+    for (const auto &userName : members)
     {
         if (!userRepository.userExists(userName))
         {
-            return false;
+            return DomainResult::domainError(errors::Code::user_not_found);
         }
     }
-    std::string channelName = "Private: " + userRepository.getUser(userNames[0]).getUsername() + " & " + userRepository.getUser(userNames[1]).getUsername();
-    Channel newChannel = Channel(
+
+    Channel newChannel(
         nextChannelId++,
-        channelName,
+        name,
         std::vector<int>{},
-        std::unordered_set<std::string>(userNames.begin(), userNames.end()), true);
+        members,
+        false);
+
     if (channelRepository.channelExists(newChannel.getChannelId()))
     {
-        return false;
+        return DomainResult::domainError(errors::Code::forbidden);
     }
-    for (auto &userName : userNames)
+
+    for (const auto &userName : members)
     {
         channelMap[userName].push_back(newChannel.getChannelId());
     }
-    return channelRepository.addChannel(newChannel);
+
+    if (!channelRepository.addChannel(newChannel))
+    {
+        return DomainResult::domainError(errors::Code::forbidden);
+    }
+
+    if (createdChannel != nullptr)
+    {
+        *createdChannel = newChannel;
+    }
+
+    return DomainResult::success(success::Code::channel_created);
 }
-bool ChannelManager::deleteChannel(int channelId)
+
+DomainResult ChannelManager::createPrivateConversation(const std::string &requestorName, const std::vector<std::string> &userNames, Channel *createdChannel)
+{
+    if (requestorName.empty())
+    {
+        return DomainResult::domainError(errors::Code::unauthorized);
+    }
+
+    std::unordered_set<std::string> members(userNames.begin(), userNames.end());
+    members.insert(requestorName);
+
+    if (members.size() != 2)
+    {
+        return DomainResult::formatError(errors::Code::invalid_payload);
+    }
+
+    std::vector<std::string> orderedMembers(members.begin(), members.end());
+    std::sort(orderedMembers.begin(), orderedMembers.end());
+
+    for (const auto &userName : orderedMembers)
+    {
+        if (!userRepository.userExists(userName))
+        {
+            return DomainResult::domainError(errors::Code::user_not_found);
+        }
+    }
+
+    std::string channelName = "Private: " +
+                              userRepository.getUser(orderedMembers[0]).getUsername() +
+                              " & " +
+                              userRepository.getUser(orderedMembers[1]).getUsername();
+
+    Channel newChannel(
+        nextChannelId++,
+        channelName,
+        std::vector<int>{},
+        members,
+        true);
+
+    if (channelRepository.channelExists(newChannel.getChannelId()))
+    {
+        return DomainResult::domainError(errors::Code::forbidden);
+    }
+
+    for (const auto &userName : members)
+    {
+        channelMap[userName].push_back(newChannel.getChannelId());
+    }
+
+    if (!channelRepository.addChannel(newChannel))
+    {
+        return DomainResult::domainError(errors::Code::forbidden);
+    }
+
+    if (createdChannel != nullptr)
+    {
+        *createdChannel = newChannel;
+    }
+
+    return DomainResult::success(success::Code::channel_created);
+}
+
+DomainResult ChannelManager::deleteChannel(const std::string &requestorName, int channelId)
 {
     if (!channelRepository.channelExists(channelId))
     {
-        return false;
+        return DomainResult::domainError(errors::Code::channel_not_found);
     }
-    for (auto &entry : channelMap)
+
+    Channel channel = channelRepository.getChannel(channelId);
+    if (!isMember(channel, requestorName))
     {
-        auto &channels = entry.second;
+        return DomainResult::domainError(errors::Code::forbidden);
+    }
+
+    for (const auto &userName : channel.getUserIds())
+    {
+        auto entry = channelMap.find(userName);
+        if (entry == channelMap.end())
+        {
+            continue;
+        }
+
+        auto &channels = entry->second;
         channels.erase(std::remove(channels.begin(), channels.end(), channelId), channels.end());
     }
-    return channelRepository.removeChannel(channelId);
+
+    if (!channelRepository.removeChannel(channelId))
+    {
+        return DomainResult::domainError(errors::Code::forbidden);
+    }
+
+    return DomainResult::success(success::Code::channel_removed);
 }
-bool ChannelManager::removeUserFromChannel(int channelId, const std::string &userName)
+
+DomainResult ChannelManager::removeUserFromChannel(const std::string &requestorName, int channelId, const std::string &userName)
 {
     if (!channelRepository.channelExists(channelId))
     {
-        return false;
+        return DomainResult::domainError(errors::Code::channel_not_found);
     }
+
     Channel channel = channelRepository.getChannel(channelId);
-    if (channel.getUserIds().find(userName) == channel.getUserIds().end())
+    if (!isMember(channel, requestorName) || !isMember(channel, userName))
     {
-        return false;
+        return DomainResult::domainError(errors::Code::forbidden);
     }
+
     Channel updatedChannel = channel.removeUserId(userName);
     auto &channels = channelMap[userName];
     channels.erase(std::remove(channels.begin(), channels.end(), channelId), channels.end());
-    return channelRepository.updateChannel(updatedChannel);
+
+    if (!channelRepository.updateChannel(updatedChannel))
+    {
+        return DomainResult::domainError(errors::Code::forbidden);
+    }
+
+    return DomainResult::success(success::Code::user_removed_from_channel);
 }
-bool ChannelManager::addUserToChannel(int channelId, const std::string &userName)
+
+DomainResult ChannelManager::addUserToChannel(const std::string &requestorName, int channelId, const std::string &userName, Channel *updatedChannel)
 {
     if (!channelRepository.channelExists(channelId))
     {
-        return false;
+        return DomainResult::domainError(errors::Code::channel_not_found);
     }
+
     Channel channel = channelRepository.getChannel(channelId);
+    if (!isMember(channel, requestorName))
+    {
+        return DomainResult::domainError(errors::Code::forbidden);
+    }
+
+    if (!userRepository.userExists(userName))
+    {
+        return DomainResult::domainError(errors::Code::user_not_found);
+    }
+
     if (channel.getUserIds().size() >= channel.getMaxUsers())
     {
-        return false;
+        return DomainResult::domainError(errors::Code::channel_full);
     }
-    if (channel.getUserIds().find(userName) != channel.getUserIds().end())
+
+    if (isMember(channel, userName))
     {
-        return false;
+        return DomainResult::domainError(errors::Code::user_already_in_channel);
     }
-    Channel updatedChannel = channel.addUserId(userName);
+
+    Channel newChannel = channel.addUserId(userName);
     channelMap[userName].push_back(channelId);
-    return channelRepository.updateChannel(updatedChannel);
+
+    if (!channelRepository.updateChannel(newChannel))
+    {
+        return DomainResult::domainError(errors::Code::forbidden);
+    }
+
+    if (updatedChannel != nullptr)
+    {
+        *updatedChannel = newChannel;
+    }
+
+    return DomainResult::success(success::Code::user_joined_channel);
 }
-bool ChannelManager::editChannelName(int channelId, const std::string &newName)
+
+DomainResult ChannelManager::editChannelName(const std::string &requestorName, int channelId, const std::string &newName)
 {
     if (!channelRepository.channelExists(channelId))
     {
-        return false;
+        return DomainResult::domainError(errors::Code::channel_not_found);
     }
+
     Channel channel = channelRepository.getChannel(channelId);
+    if (!isMember(channel, requestorName))
+    {
+        return DomainResult::domainError(errors::Code::forbidden);
+    }
+
     Channel updatedChannel = channel.withName(newName);
-    return channelRepository.updateChannel(updatedChannel);
+    if (!channelRepository.updateChannel(updatedChannel))
+    {
+        return DomainResult::domainError(errors::Code::forbidden);
+    }
+
+    return DomainResult::success(success::Code::channel_edited);
 }
+
 std::vector<Channel> ChannelManager::getUserActiveChannels(const std::string &userName)
 {
     std::vector<Channel> activeChannels;
@@ -117,6 +257,7 @@ std::vector<Channel> ChannelManager::getUserActiveChannels(const std::string &us
     }
     return activeChannels;
 }
+
 std::vector<Channel> ChannelManager::getAllUserChannels(const std::string &userName)
 {
     std::vector<Channel> allChannels;
@@ -126,17 +267,42 @@ std::vector<Channel> ChannelManager::getAllUserChannels(const std::string &userN
     }
     return allChannels;
 }
-bool ChannelManager::deactivateChannel(int channelId)
+
+DomainResult ChannelManager::deactivateChannel(int channelId)
 {
     if (!channelRepository.channelExists(channelId))
     {
-        return false;
+        return DomainResult::domainError(errors::Code::channel_not_found);
     }
+
     Channel channel = channelRepository.getChannel(channelId);
     if (!channel.getIsPrivate())
     {
-        return true;
+        return DomainResult::success(success::Code::channel_deactivated);
     }
+
     Channel updatedChannel = channel.toggleActive();
-    return channelRepository.updateChannel(updatedChannel);
+    if (!channelRepository.updateChannel(updatedChannel))
+    {
+        return DomainResult::domainError(errors::Code::forbidden);
+    }
+
+    return DomainResult::success(success::Code::channel_deactivated);
+}
+std::optional<std::unordered_set<std::string>> ChannelManager::getChannelUsernames(int channelId) const
+{
+    if (!channelRepository.channelExists(channelId))
+    {
+        return std::nullopt;
+    }
+    return channelRepository.getChannel(channelId).getUserIds();
+}
+
+std::optional<Channel> ChannelManager::getChannel(int channelId) const
+{
+    if (!channelRepository.channelExists(channelId))
+    {
+        return std::nullopt;
+    }
+    return channelRepository.getChannel(channelId);
 }

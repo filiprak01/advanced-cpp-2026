@@ -23,7 +23,7 @@ public:
      * @brief Wykonuje usunięcie wiadomości w podanym kontekście.
      * @param context Kontekst menedżerów serwera.
      */
-    void perform(ManagerContext &context) override;
+    void perform(ManagerContext &context, int clientFd) override;
 
 private:
     int messageId; ///< Identyfikator usuwanej wiadomości.

@@ -1,5 +1,6 @@
 #pragma once
 #include <server/auth/password_hasher.hpp>
+#include <server/core/domain_result.hpp>
 #include <server/repos/user_repo.hpp>
 
 /**
@@ -30,7 +31,7 @@ public:
      * @param password Hasło w postaci jawnej.
      * @return @c true jeśli rejestracja się powiódła.
      */
-    bool registerUser(const std::string &username, const std::string &password);
+    DomainResult registerUser(const std::string &username, const std::string &password);
 
 private:
     int passwordMinLength;          ///< Minimalna długość hasła.

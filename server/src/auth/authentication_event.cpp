@@ -1,15 +1,27 @@
 #include <server/auth/authentication_event.hpp>
-#include <iostream>
 
-void AuthenticationEvent::perform(ManagerContext &context)
+void AuthenticationEvent::perform(ManagerContext &context, int clientFd)
 {
-    std::cout << "Performing authentication for user: " << username << std::endl;
-    if (context.authenticationManager.authenticate(username, password))
+    context.sessionManager.cleanInactiveSessions();
+    if (username.empty())
     {
-        std::cout << "Authentication successful for user: " << username << std::endl;
+        context.connectionManager.sendErrorMessage(clientFd, DomainResult::formatError(errors::Code::empty_user_name));
+        return;
     }
-    else
+
+    DomainResult result = context.authenticationManager.authenticate(username, password);
+    if (!result.isSuccess())
     {
-        std::cout << "Authentication failed for user: " << username << std::endl;
+        context.connectionManager.sendErrorMessage(clientFd, result);
+        return;
     }
+
+    context.connectionManager.updateConnectionMapping(clientFd, username);
+    bool sessionCreated = context.sessionManager.createSession(clientFd);
+    if (!sessionCreated)
+    {
+        context.sessionManager.updateUserSession(clientFd);
+    }
+
+    context.connectionManager.sendSuccessMessage(clientFd, "login_response", result, {{"userName", username}});
 }

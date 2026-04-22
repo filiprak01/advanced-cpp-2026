@@ -8,6 +8,9 @@ services:
     restart: unless-stopped
     ports:
       - "8090:8090"
+    environment:
+      - CONFIG_PATH=/opt/app/config
+      - REPO_PATH=/opt/app/repo
     volumes:
       - config-data:/opt/app/config
       - repo-data:/opt/app/repo

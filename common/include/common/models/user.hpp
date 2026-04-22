@@ -2,6 +2,7 @@
 #include <string>
 #include <functional>
 #include <nlohmann/json.hpp>
+#include <common/utilities/json_serializable.hpp>
 using json = nlohmann::json;
 
 /**
@@ -10,7 +11,7 @@ using json = nlohmann::json;
  * Przechowuje nazwę użytkownika oraz dane uwierzytelniające
  * (skrót hasła i sól w formacie Base64).
  */
-class User
+class User : public JSONSerializable
 {
 public:
     User() = default;
@@ -48,14 +49,13 @@ public:
      * @brief Serializuje użytkownika do obiektu JSON.
      * @return Obiekt JSON reprezentujący użytkownika.
      */
-    json toJson() const;
+    json toJson() const override;
 
     /**
      * @brief Deserializuje użytkownika z obiektu JSON.
      * @param j Obiekt JSON z danymi użytkownika.
-     * @return Odtworzony obiekt użytkownika.
      */
-    static User fromJson(const json &j);
+    void fromJson(const json &j) override;
 
 private:
     std::string username;     ///< Nazwa użytkownika.

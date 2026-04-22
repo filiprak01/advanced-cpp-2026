@@ -1,37 +1,87 @@
 #include <server/core/message_manager.hpp>
 
-bool MessageManager::sendMessage(const std::string &content, std::string senderName, int channelId, const std::chrono::steady_clock::time_point &timestamp)
+DomainResult MessageManager::sendMessage(const std::string &content, int fd, int channelId, const std::chrono::steady_clock::time_point &timestamp, Message *createdMessage)
 {
-    if (!userRepository.userExists(senderName))
+    std::string username = connectionManager.getUsernameFromFd(fd);
+    if (username == "")
     {
-        return false;
+        return DomainResult::domainError(errors::Code::unauthorized);
+    }
+    if (!userRepository.userExists(username))
+    {
+        return DomainResult::domainError(errors::Code::user_not_found);
     }
     if (!channelRepository.channelExists(channelId))
     {
-        return false;
+        return DomainResult::domainError(errors::Code::channel_not_found);
     }
-    Message message = Message(nextMessageId++, content, senderName, timestamp);
+    bool userInChannel = false;
+    std::unordered_set<std::string> channelUserIds = channelRepository.getChannel(channelId).getUserIds();
+    for (std::string channelUserId : channelUserIds)
+    {
+        if (channelUserId == username)
+        {
+            userInChannel = true;
+        }
+    }
+    if (!userInChannel)
+    {
+        return DomainResult::domainError(errors::Code::forbidden);
+    }
+    Message message = Message(nextMessageId++, content, username, timestamp);
     if (messageRepository.messageExists(message.getId()))
     {
-        return false;
+        return DomainResult::domainError(errors::Code::forbidden);
     }
     messageMap[message.getId()] = channelId;
-    return messageRepository.addMessage(message);
+    if (!messageRepository.addMessage(message))
+    {
+        return DomainResult::domainError(errors::Code::forbidden);
+    }
+    if (createdMessage != nullptr)
+    {
+        *createdMessage = message;
+    }
+    return DomainResult::success(success::Code::message_added);
 }
-bool MessageManager::deleteMessage(int messageId)
+DomainResult MessageManager::deleteMessage(std::string requestorName, int messageId)
 {
     if (!messageRepository.messageExists(messageId))
     {
-        return false;
+        return DomainResult::domainError(errors::Code::message_not_found);
+    }
+    Message message = messageRepository.getMessage(messageId);
+    if (message.getSenderName() != requestorName)
+    {
+        return DomainResult::domainError(errors::Code::forbidden);
     }
     messageMap.erase(messageId);
-    return messageRepository.removeMessage(messageId);
+    if (!messageRepository.removeMessage(messageId))
+    {
+        return DomainResult::domainError(errors::Code::forbidden);
+    }
+
+    return DomainResult::success(success::Code::message_removed);
 }
-bool MessageManager::editMessage(int messageId, const std::string &newContent)
+DomainResult MessageManager::editMessage(std::string requestorName, int messageId, const std::string &newContent)
 {
+    if (!messageRepository.messageExists(messageId))
+    {
+        return DomainResult::domainError(errors::Code::message_not_found);
+    }
+    Message message = messageRepository.getMessage(messageId);
+    if (message.getSenderName() != requestorName)
+    {
+        return DomainResult::domainError(errors::Code::forbidden);
+    }
     Message oldMessage = messageRepository.getMessage(messageId);
     Message newMessage = oldMessage.withContent(newContent);
-    return messageRepository.updateMessage(newMessage);
+    if (!messageRepository.updateMessage(newMessage))
+    {
+        return DomainResult::domainError(errors::Code::forbidden);
+    }
+
+    return DomainResult::success(success::Code::message_edited);
 }
 std::optional<std::vector<Message>> MessageManager::getChannelMessages(int channelId)
 {
@@ -51,4 +101,17 @@ std::optional<std::vector<Message>> MessageManager::getChannelMessages(int chann
         }
     }
     return ret;
+}
+std::optional<int> MessageManager::getChannelIdFromMessage(int messageId) const
+{
+    if (!messageRepository.messageExists(messageId))
+    {
+        return std::nullopt;
+    }
+    auto messageItem = messageMap.find(messageId);
+    if (messageItem == messageMap.end())
+    {
+        return std::nullopt;
+    }
+    return messageItem->second;
 }

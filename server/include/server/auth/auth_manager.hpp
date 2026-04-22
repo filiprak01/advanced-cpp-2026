@@ -1,5 +1,6 @@
 #pragma once
 #include <server/auth/password_hasher.hpp>
+#include <server/core/domain_result.hpp>
 #include <server/repos/user_repo.hpp>
 
 /**
@@ -25,7 +26,7 @@ public:
      * @param password Hasło w postaci jawnej.
      * @return @c true jeśli dane logowania są poprawne.
      */
-    bool authenticate(const std::string &username, const std::string &password);
+    DomainResult authenticate(const std::string &username, const std::string &password);
 
 private:
     UserRepository &userRepository; ///< Repozytorium użytkowników.

@@ -30,4 +30,12 @@ TEST_F(UserTest, OperatorEqualByUsername) {}
 TEST_F(UserTest, ToJsonContainsUsername) {}
 
 /// @test Deserializacja z JSON odtwarza oryginalny obiekt.
-TEST_F(UserTest, FromJsonRestoresObject) {}
+TEST_F(UserTest, FromJsonRestoresObject)
+{
+    User original = makeUser();
+    json j = original.toJson();
+    User restored;
+    restored.fromJson(j);
+    EXPECT_EQ(restored.getUsername(), original.getUsername());
+    EXPECT_EQ(restored.getPasswordHash(), original.getPasswordHash());
+}

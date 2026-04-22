@@ -66,16 +66,14 @@ json Channel::toJson() const
     return j;
 }
 
-Channel Channel::fromJson(const json &j)
+void Channel::fromJson(const json &j)
 {
-    int id = j.at("channelId").get<int>();
-    std::string name = j.at("name").get<std::string>();
-    bool isPrivate = j.value("isPrivate", false);
-    std::vector<int> messageIds = j.value("messageIds", std::vector<int>{});
+    channelId = j.at("channelId").get<int>();
+    name = j.at("name").get<std::string>();
+    isPrivate = j.value("isPrivate", false);
+    isActive = j.value("isActive", true);
+    maxUsers = j.value("maxUsers", isPrivate ? 2 : 32);
+    messageIds = j.value("messageIds", std::vector<int>{});
     std::vector<std::string> userIdsVec = j.value("userIds", std::vector<std::string>{});
-    std::unordered_set<std::string> userIds(userIdsVec.begin(), userIdsVec.end());
-    Channel ch(id, name, messageIds, userIds, isPrivate);
-    if (!j.value("isActive", true))
-        ch = ch.toggleActive();
-    return ch;
+    userIds = std::unordered_set<std::string>(userIdsVec.begin(), userIdsVec.end());
 }

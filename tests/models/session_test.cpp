@@ -33,4 +33,16 @@ TEST_F(SessionTest, OperatorEqualBySessionId) {}
 TEST_F(SessionTest, ToJsonContainsRequiredFields) {}
 
 /// @test Deserializacja z JSON odtwarza sesję.
-TEST_F(SessionTest, FromJsonRestoresObject) {}
+TEST_F(SessionTest, FromJsonRestoresObject)
+{
+    Session original = makeSession();
+    json j = original.toJson();
+    Session restored;
+    restored.fromJson(j);
+    EXPECT_EQ(restored.getSessionId(), original.getSessionId());
+    EXPECT_EQ(restored.getUserName(), original.getUserName());
+    // Timestamp check similar to message
+    EXPECT_NEAR(std::chrono::duration_cast<std::chrono::milliseconds>(restored.getLastActive().time_since_epoch()).count(),
+                std::chrono::duration_cast<std::chrono::milliseconds>(original.getLastActive().time_since_epoch()).count(),
+                1);
+}

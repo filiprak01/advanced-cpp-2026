@@ -1,7 +1,7 @@
 #pragma once
 #include <server/repos/session_repo.hpp>
 #include <unordered_map>
-
+#include <server/core/connection_manager.hpp>
 /**
  * @brief Menedżer sesji użytkowników serwera.
  *
@@ -18,18 +18,24 @@ public:
      * @param userSessions      Początkowa mapa: userId → sessionId.
      * @param nextSessionId     Początkowa wartość licznika sesji.
      */
-    SessionManager(SessionRepository &sessionRepository, std::chrono::milliseconds sessionTimeout, std::unordered_map<std::string, int> userSessions, int nextSessionId = 1)
-        : sessionRepository(sessionRepository), sessionTimeout(sessionTimeout), userSessions(userSessions), nextSessionId(nextSessionId) {}
-
+    SessionManager(SessionRepository &sessionRepository, ConnectionManager &connectionManager, std::chrono::milliseconds sessionTimeout, std::unordered_map<std::string, int> userSessions, int nextSessionId = 1)
+        : sessionRepository(sessionRepository), connectionManager(connectionManager), sessionTimeout(sessionTimeout), userSessions(userSessions), nextSessionId(nextSessionId) {}
     /// @brief Usuwa wszystkie nieaktywne sesje. Zwraca @c true jeśli coś usunięto.
     bool cleanInactiveSessions();
+
+    /**
+     * @brief Sprawdza, czy użytkownik ma aktywną sesję (jest zalogowany).
+     * @param userName Nazwa użytkownika.
+     * @return @c true jeśli sesja istnieje.
+     */
+    bool hasSession(int fd);
 
     /**
      * @brief Tworzy nową sesję dla użytkownika.
      * @param userId Identyfikator użytkownika.
      * @return @c true jeśli tworzenie się powiódło.
      */
-    bool createSession(const std::string &userName);
+    bool createSession(int fd);
 
     /**
      * @brief Usuwa sesję użytkownika.
@@ -43,13 +49,7 @@ public:
      * @param userId Identyfikator użytkownika.
      * @return @c true jeśli aktualizacja się powiódła.
      */
-    bool updateUserSession(const std::string &userName);
-
-private:
-    SessionRepository &sessionRepository;              ///< Repozytorium sesji.
-    std::chrono::milliseconds sessionTimeout;          ///< Timeout sesji.
-    std::unordered_map<std::string, int> userSessions; ///< Mapa: userName → sessionId.
-    int nextSessionId;                                 ///< Licznik identyfikatorów sesji.
+    bool updateUserSession(int fd);
 
     /**
      * @brief Sprawdza, czy sesja jest aktywna (nie wygasła).
@@ -57,4 +57,11 @@ private:
      * @return @c true jeśli sesja jest ważna.
      */
     bool isSessionValid(const int &sessionId);
+
+private:
+    SessionRepository &sessionRepository; ///< Repozytorium sesji.
+    ConnectionManager &connectionManager;
+    std::chrono::milliseconds sessionTimeout;          ///< Timeout sesji.
+    std::unordered_map<std::string, int> userSessions; ///< Mapa: userName → sessionId.
+    int nextSessionId;                                 ///< Licznik identyfikatorów sesji.
 };

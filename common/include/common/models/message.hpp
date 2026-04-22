@@ -2,6 +2,7 @@
 #include <string>
 #include <nlohmann/json.hpp>
 #include <functional>
+#include <common/utilities/json_serializable.hpp>
 using json = nlohmann::json;
 
 /**
@@ -10,7 +11,7 @@ using json = nlohmann::json;
  * Przechowuje treść wiadomości, nazwę nadawcy, unikalny identyfikator
  * oraz znacznik czasu momentu wysłania.
  */
-class Message
+class Message : public JSONSerializable
 {
 public:
     Message() = default;
@@ -66,14 +67,13 @@ public:
      * @brief Serializuje wiadomość do obiektu JSON.
      * @return Obiekt JSON reprezentujący wiadomość.
      */
-    json toJson() const;
+    json toJson() const override;
 
     /**
      * @brief Deserializuje wiadomość z obiektu JSON.
      * @param j Obiekt JSON z danymi wiadomości.
-     * @return Odtworzony obiekt wiadomości.
      */
-    static Message fromJson(const json &j);
+    void fromJson(const json &j) override;
 
 private:
     int id;                                          ///< Unikalny identyfikator wiadomości.

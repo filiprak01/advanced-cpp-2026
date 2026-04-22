@@ -25,12 +25,11 @@ json Message::toJson() const
     return j;
 }
 
-Message Message::fromJson(const json &j)
+void Message::fromJson(const json &j)
 {
-    int id = j.at("id").get<int>();
-    std::string content = j.at("content").get<std::string>();
-    std::string senderName = j.at("senderName").get<std::string>();
+    id = j.at("id").get<int>();
+    content = j.at("content").get<std::string>();
+    senderName = j.at("senderName").get<std::string>();
     long long ms = j.value("timestampMs", 0LL);
-    auto timestamp = std::chrono::steady_clock::time_point(std::chrono::milliseconds(ms));
-    return Message(id, content, senderName, timestamp);
+    timestamp = std::chrono::steady_clock::time_point(std::chrono::milliseconds(ms));
 }

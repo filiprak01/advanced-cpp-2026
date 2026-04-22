@@ -24,11 +24,10 @@ json Session::toJson() const
     return j;
 }
 
-Session Session::fromJson(const json &j)
+void Session::fromJson(const json &j)
 {
-    int sessionId = j.at("sessionId").get<int>();
-    std::string userName = j.at("userName").get<std::string>();
+    sessionId = j.at("sessionId").get<int>();
+    userName = j.at("userName").get<std::string>();
     long long ms = j.value("lastActiveMs", 0LL);
-    auto lastActive = std::chrono::steady_clock::time_point(std::chrono::milliseconds(ms));
-    return Session(sessionId, userName, lastActive);
+    lastActive = std::chrono::steady_clock::time_point(std::chrono::milliseconds(ms));
 }

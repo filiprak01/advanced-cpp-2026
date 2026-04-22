@@ -8,6 +8,8 @@
 #include <stdexcept>
 #include <vector>
 #include <nlohmann/json.hpp>
+#include <common/const/event_messages.hpp>
+
 using json = nlohmann::json;
 int Server::createAndBindSocket(int port)
 {
@@ -48,9 +50,9 @@ Server::Server(int port)
       messageRepo(),
       passwordHasher(),
       connectionManager(server_fd),
-      sessionManager(sessionRepo, std::chrono::milliseconds(30 * 60 * 1000), {}),
+      sessionManager(sessionRepo, connectionManager, std::chrono::milliseconds(30 * 60 * 1000), {}),
       channelManager(channelRepo, userRepo),
-      messageManager(messageRepo, userRepo, channelRepo, 1, {}),
+      messageManager(connectionManager, messageRepo, userRepo, channelRepo, 1, {}),
       authManager(userRepo, passwordHasher),
       registrationManager(userRepo, passwordHasher),
       running(false)
@@ -66,12 +68,12 @@ Server::Server(const ServerConfig &cfg)
       messageRepo(),
       passwordHasher(),
       connectionManager(server_fd),
-      sessionManager(sessionRepo,
+      sessionManager(sessionRepo, connectionManager,
                      std::chrono::milliseconds(
                          static_cast<long long>(cfg.getSessionTimeout()) * 1000),
                      {}),
       channelManager(channelRepo, userRepo),
-      messageManager(messageRepo, userRepo, channelRepo, 1, {}),
+      messageManager(connectionManager, messageRepo, userRepo, channelRepo, 1, {}),
       authManager(userRepo, passwordHasher),
       registrationManager(userRepo, passwordHasher),
       running(false)
@@ -127,13 +129,45 @@ void Server::run()
             }
             else
             {
-                json received = connectionManager.receiveMessage(fds[i].fd);
-                std::cout << "Received JSON from fd " << fds[i].fd << ": " << received.dump() << std::endl;
-                std::unique_ptr<Event> event = eventFactory.createEvent(received);
-                if (event)
-                    event->perform(managerContext);
-                else
-                    std::cerr << "Unknown event type from fd " << fds[i].fd << std::endl;
+                bool clientDisconnected = false;
+                try
+                {
+                    json received = connectionManager.receiveMessage(fds[i].fd);
+                    // Empty string returned by receiveMessage means client disconnected
+                    if (received.is_string() && received.get<std::string>().empty())
+                    {
+                        clientDisconnected = true;
+                    }
+                    else
+                    {
+                        std::cout << "Received JSON from fd " << fds[i].fd << ": " << received.dump() << std::endl;
+                        std::unique_ptr<Event> event = eventFactory.createEvent(received);
+                        if (event)
+                        {
+                            event->perform(managerContext, fds[i].fd);
+                        }
+                        else
+                        {
+                            connectionManager.sendErrorMessage(fds[i].fd, DomainResult::formatError(errors::Code::unknown_event_type));
+                        }
+                    }
+                }
+                catch (const std::exception &e)
+                {
+                    std::cout << "Error handling fd " << fds[i].fd << ": " << e.what() << std::endl;
+                    clientDisconnected = true;
+                }
+                catch (...)
+                {
+                    std::cout << "Unknown error handling fd " << fds[i].fd << std::endl;
+                    clientDisconnected = true;
+                }
+
+                if (clientDisconnected)
+                {
+                    fds.erase(fds.begin() + static_cast<std::ptrdiff_t>(i));
+                    --i; // adjust index after erase
+                }
             }
         }
     }

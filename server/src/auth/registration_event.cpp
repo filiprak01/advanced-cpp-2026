@@ -1,15 +1,19 @@
 #include <server/auth/registration_event.hpp>
-#include <iostream>
 
-void RegistrationEvent::perform(ManagerContext &context)
+void RegistrationEvent::perform(ManagerContext &context, int clientFd)
 {
-    std::cout << "Performing registration for user: " << username << std::endl;
-    if (context.registrationManager.registerUser(username, password))
+    if (username.empty())
     {
-        std::cout << "Registration successful for user: " << username << std::endl;
+        context.connectionManager.sendErrorMessage(clientFd, DomainResult::formatError(errors::Code::empty_user_name));
+        return;
     }
-    else
+
+    DomainResult result = context.registrationManager.registerUser(username, password);
+    if (result.isSuccess())
     {
-        std::cout << "Registration failed for user: " << username << std::endl;
+        context.connectionManager.sendSuccessMessage(clientFd, "register_response", result);
+        return;
     }
+
+    context.connectionManager.sendErrorMessage(clientFd, result);
 }

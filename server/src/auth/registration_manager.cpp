@@ -19,22 +19,27 @@ bool RegistrationManager::validateUsername(const std::string &username) const
     return len >= usernameMinLength && len <= usernameMaxLength;
 }
 
-bool RegistrationManager::registerUser(const std::string &username, const std::string &password)
+DomainResult RegistrationManager::registerUser(const std::string &username, const std::string &password)
 {
     if (!validateUsername(username))
     {
-        return false;
+        return DomainResult::formatError(errors::Code::invalid_payload);
     }
     if (!validatePassword(password))
     {
-        return false;
+        return DomainResult::formatError(errors::Code::invalid_payload);
     }
     if (userRepo.userExists(username))
     {
-        return false;
+        return DomainResult::domainError(errors::Code::user_already_exists);
     }
 
     const std::string base64salt = passwordHasher.generateBase64Salt();
     const std::string passwordHash = passwordHasher.generatePasswordHash(password, base64salt);
-    return userRepo.addUser(User(username, passwordHash, base64salt));
+    if (!userRepo.addUser(User(username, passwordHash, base64salt)))
+    {
+        return DomainResult::domainError(errors::Code::forbidden);
+    }
+
+    return DomainResult::success(success::Code::user_registered);
 }

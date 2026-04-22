@@ -21,7 +21,7 @@ public:
      * @brief Wykonuje usunięcie kanału w podanym kontekście.
      * @param context Kontekst menedżerów serwera.
      */
-    void perform(ManagerContext &context) override;
+    void perform(ManagerContext &context, int clientFd) override;
 
 private:
     int channelId; ///< Identyfikator usuwanego kanału.

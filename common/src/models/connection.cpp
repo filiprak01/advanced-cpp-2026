@@ -16,6 +16,7 @@ json Connection::toJson() const
 Connection Connection::fromJson(const json &j)
 {
     std::string socket = j.at("socket").get<std::string>();
-    Session session = Session::fromJson(j.at("session"));
+    Session session;
+    session.fromJson(j.at("session"));
     return Connection(socket, session);
 }

@@ -1,9 +1,11 @@
 #pragma once
+#include <common/const/event_messages.hpp>
 #include <common/models/connection.hpp>
+#include <server/core/domain_result.hpp>
 #include <server/repos/message_repo.hpp>
 #include <server/repos/user_repo.hpp>
 #include <server/repos/session_repo.hpp>
-
+#include <string_view>
 #include <unordered_map>
 #include <string>
 #include <nlohmann/json.hpp>
@@ -30,6 +32,14 @@ public:
     int acceptConnection();
 
     /**
+     * @brief Rejestruje polaczenie w mapie bez wywolywania acceptConnection().
+     * @param client_fd Deskryptor gniazda klienta.
+     * @param userName  Nazwa uzytkownika przypisana do polaczenia.
+     * @return @c true jezeli wpis zostal zapisany.
+     */
+    bool registerConnection(int client_fd, const std::string &userName = "");
+
+    /**
      * @brief Zamyka połączenie po deskryptorze gniazda.
      * @param client_fd Deskryptor gniazda klienta.
      * @return @c true jeśli zamknięcie się powiódło.
@@ -44,13 +54,14 @@ public:
     bool closeConnection(const std::string &userName);
 
     /**
-     * @brief Wysyła wiadomość do klienta.
-     * @param client_fd Deskryptor gniazda klienta.
-     * @param message   Treść wiadomości.
-     * @return @c true jeśli wysyłanie się powiódło.
+     * @brief Wysyła wiadomość do klienta po deskryptorze gniazda.
+     * @param fd      Deskryptor gniazda klienta.
+     * @param message Treść wiadomości.
+     * @return @c true jeśli wysyłanie się powiodło.
      */
-    bool sendMessage(int client_fd, const std::string &message);
-
+    bool sendMessage(int fd, const json &message);
+    bool sendErrorMessage(int fd, const DomainResult &result);
+    bool sendSuccessMessage(int fd, std::string_view type, const DomainResult &result, const json &payload = json::object());
     /**
      * @brief Odbiera wiadomość od klienta.
      * @param client_fd Deskryptor gniazda klienta.
@@ -77,6 +88,8 @@ public:
     {
         return connectionMap;
     }
+
+    const std::string getUsernameFromFd(int fd);
 
 private:
     int server_fd;                                      ///< Deskryptor gniazda serwera.

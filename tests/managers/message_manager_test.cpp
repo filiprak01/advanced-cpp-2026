@@ -1,227 +1,213 @@
 #include <gtest/gtest.h>
 #include <server/core/message_manager.hpp>
+#include "domain_result_expect.hpp"
 
-// ---------------------------------------------------------------------------
-// Fixtures
-// ---------------------------------------------------------------------------
+namespace
+{
+constexpr int kValidFd = 201;
+constexpr int kGhostFd = 999;
+constexpr int kOtherFd = 202;
+} // namespace
 
 struct MessageFixture : ::testing::Test
 {
     MessageRepository msgRepo;
     UserRepository userRepo;
     ChannelRepository chRepo;
-    MessageManager mgr{msgRepo, userRepo, chRepo, 1, {}};
+    ConnectionManager connectionManager{-1};
+    MessageManager mgr{connectionManager, msgRepo, userRepo, chRepo, 1, {}};
 
     const std::string validUser{"alice"};
     const int channelId{1};
 
+    void bindUser(int fd, const std::string &userName)
+    {
+        ASSERT_TRUE(connectionManager.registerConnection(fd, userName));
+    }
+
     void SetUp() override
     {
-        // Seed a user and a channel that most tests need.
+        bindUser(kValidFd, validUser);
+        bindUser(kOtherFd, "bob");
         userRepo.addUser(User{validUser, "hash", "salt"});
-        chRepo.addChannel(Channel{channelId, "general", {}, {}, false});
+        userRepo.addUser(User{"bob", "hash", "salt"});
+        chRepo.addChannel(Channel{channelId, "general", {}, {validUser, "bob"}, false});
     }
 };
 
-// ---------------------------------------------------------------------------
-// sendMessage — happy path
-// ---------------------------------------------------------------------------
-
-/// @test Sending a message from an existing user to an existing channel succeeds.
 TEST_F(MessageFixture, SendMessageSucceeds)
 {
-    EXPECT_TRUE(mgr.sendMessage("hello", validUser, channelId, std::chrono::steady_clock::now()));
+    EXPECT_RESULT_SUCCESS(mgr.sendMessage("hello", kValidFd, channelId, std::chrono::steady_clock::now()), success::Code::message_added);
 }
 
-/// @test After a successful send, the message exists in the repo.
 TEST_F(MessageFixture, SendMessageStoresInRepo)
 {
-    mgr.sendMessage("hello", validUser, channelId, std::chrono::steady_clock::now());
+    ASSERT_RESULT_SUCCESS(mgr.sendMessage("hello", kValidFd, channelId, std::chrono::steady_clock::now()), success::Code::message_added);
     EXPECT_TRUE(msgRepo.messageExists(1));
 }
 
-/// @test Message content is stored verbatim.
 TEST_F(MessageFixture, SendMessageContentIsPreserved)
 {
-    mgr.sendMessage("exact content", validUser, channelId, std::chrono::steady_clock::now());
+    ASSERT_RESULT_SUCCESS(mgr.sendMessage("exact content", kValidFd, channelId, std::chrono::steady_clock::now()), success::Code::message_added);
     EXPECT_EQ(msgRepo.getMessage(1).getContent(), "exact content");
 }
 
-/// @test Sender name is stored verbatim.
 TEST_F(MessageFixture, SendMessageSenderNameIsPreserved)
 {
-    mgr.sendMessage("hi", validUser, channelId, std::chrono::steady_clock::now());
+    ASSERT_RESULT_SUCCESS(mgr.sendMessage("hi", kValidFd, channelId, std::chrono::steady_clock::now()), success::Code::message_added);
     EXPECT_EQ(msgRepo.getMessage(1).getSenderName(), validUser);
 }
 
-/// @test Sending multiple messages assigns incrementing ids.
 TEST_F(MessageFixture, SendMessageIncrementsIds)
 {
-    mgr.sendMessage("msg1", validUser, channelId, std::chrono::steady_clock::now());
-    mgr.sendMessage("msg2", validUser, channelId, std::chrono::steady_clock::now());
+    ASSERT_RESULT_SUCCESS(mgr.sendMessage("msg1", kValidFd, channelId, std::chrono::steady_clock::now()), success::Code::message_added);
+    ASSERT_RESULT_SUCCESS(mgr.sendMessage("msg2", kValidFd, channelId, std::chrono::steady_clock::now()), success::Code::message_added);
     EXPECT_TRUE(msgRepo.messageExists(1));
     EXPECT_TRUE(msgRepo.messageExists(2));
 }
 
-// ---------------------------------------------------------------------------
-// sendMessage — error paths
-// ---------------------------------------------------------------------------
-
-/// @test Sending a message from a non-existent user returns false.
 TEST_F(MessageFixture, SendMessageUnknownUserFails)
 {
-    EXPECT_FALSE(mgr.sendMessage("hi", "ghost", channelId, std::chrono::steady_clock::now()));
+    bindUser(kGhostFd, "ghost");
+    EXPECT_RESULT_DOMAIN_ERROR(mgr.sendMessage("hi", kGhostFd, channelId, std::chrono::steady_clock::now()), errors::Code::user_not_found);
 }
 
-/// @test Sending a message to a non-existent channel returns false.
 TEST_F(MessageFixture, SendMessageUnknownChannelFails)
 {
-    EXPECT_FALSE(mgr.sendMessage("hi", validUser, 999, std::chrono::steady_clock::now()));
+    EXPECT_RESULT_DOMAIN_ERROR(mgr.sendMessage("hi", kValidFd, 999, std::chrono::steady_clock::now()), errors::Code::channel_not_found);
 }
 
-/// @test Sending a message with empty content still succeeds (no content validation).
 TEST_F(MessageFixture, SendMessageEmptyContentSucceeds)
 {
-    EXPECT_TRUE(mgr.sendMessage("", validUser, channelId, std::chrono::steady_clock::now()));
+    EXPECT_RESULT_SUCCESS(mgr.sendMessage("", kValidFd, channelId, std::chrono::steady_clock::now()), success::Code::message_added);
 }
 
-/// @test Sending a very long message succeeds (no length limit in business logic).
 TEST_F(MessageFixture, SendMessageVeryLongContentSucceeds)
 {
     std::string huge(100000, 'x');
-    EXPECT_TRUE(mgr.sendMessage(huge, validUser, channelId, std::chrono::steady_clock::now()));
+    EXPECT_RESULT_SUCCESS(mgr.sendMessage(huge, kValidFd, channelId, std::chrono::steady_clock::now()), success::Code::message_added);
 }
 
-// ---------------------------------------------------------------------------
-// deleteMessage
-// ---------------------------------------------------------------------------
-
-/// @test Deleting an existing message returns true.
 TEST_F(MessageFixture, DeleteMessageExistingSucceeds)
 {
-    mgr.sendMessage("bye", validUser, channelId, std::chrono::steady_clock::now());
-    EXPECT_TRUE(mgr.deleteMessage(1));
+    ASSERT_RESULT_SUCCESS(mgr.sendMessage("bye", kValidFd, channelId, std::chrono::steady_clock::now()), success::Code::message_added);
+    EXPECT_RESULT_SUCCESS(mgr.deleteMessage(validUser, 1), success::Code::message_removed);
 }
 
-/// @test After deletion, the message no longer exists in the repo.
 TEST_F(MessageFixture, DeleteMessageRemovesFromRepo)
 {
-    mgr.sendMessage("bye", validUser, channelId, std::chrono::steady_clock::now());
-    mgr.deleteMessage(1);
+    ASSERT_RESULT_SUCCESS(mgr.sendMessage("bye", kValidFd, channelId, std::chrono::steady_clock::now()), success::Code::message_added);
+    ASSERT_RESULT_SUCCESS(mgr.deleteMessage(validUser, 1), success::Code::message_removed);
     EXPECT_FALSE(msgRepo.messageExists(1));
 }
 
-/// @test Deleting a non-existent message returns false.
 TEST_F(MessageFixture, DeleteMessageNonExistentFails)
 {
-    EXPECT_FALSE(mgr.deleteMessage(999));
+    EXPECT_RESULT_DOMAIN_ERROR(mgr.deleteMessage(validUser, 999), errors::Code::message_not_found);
 }
 
-/// @test Double deletion: second call returns false.
 TEST_F(MessageFixture, DeleteMessageTwiceReturnsFalseOnSecond)
 {
-    mgr.sendMessage("once", validUser, channelId, std::chrono::steady_clock::now());
-    EXPECT_TRUE(mgr.deleteMessage(1));
-    EXPECT_FALSE(mgr.deleteMessage(1));
+    ASSERT_RESULT_SUCCESS(mgr.sendMessage("once", kValidFd, channelId, std::chrono::steady_clock::now()), success::Code::message_added);
+    ASSERT_RESULT_SUCCESS(mgr.deleteMessage(validUser, 1), success::Code::message_removed);
+    EXPECT_RESULT_DOMAIN_ERROR(mgr.deleteMessage(validUser, 1), errors::Code::message_not_found);
 }
 
-/// @test After deleting a message it no longer appears in getChannelMessages.
 TEST_F(MessageFixture, DeleteMessageDoesNotAppearInChannelMessages)
 {
-    mgr.sendMessage("gone", validUser, channelId, std::chrono::steady_clock::now());
-    mgr.deleteMessage(1);
-    auto msgs = mgr.getChannelMessages(channelId);
-    ASSERT_TRUE(msgs.has_value());
-    EXPECT_TRUE(msgs->empty());
+    ASSERT_RESULT_SUCCESS(mgr.sendMessage("gone", kValidFd, channelId, std::chrono::steady_clock::now()), success::Code::message_added);
+    ASSERT_RESULT_SUCCESS(mgr.deleteMessage(validUser, 1), success::Code::message_removed);
+    auto messages = mgr.getChannelMessages(channelId);
+    ASSERT_TRUE(messages.has_value());
+    EXPECT_TRUE(messages->empty());
 }
 
-// ---------------------------------------------------------------------------
-// editMessage
-// ---------------------------------------------------------------------------
+TEST_F(MessageFixture, DeleteMessageByOtherUserFails)
+{
+    ASSERT_RESULT_SUCCESS(mgr.sendMessage("owned", kValidFd, channelId, std::chrono::steady_clock::now()), success::Code::message_added);
+    EXPECT_RESULT_DOMAIN_ERROR(mgr.deleteMessage("bob", 1), errors::Code::forbidden);
+    EXPECT_TRUE(msgRepo.messageExists(1));
+}
 
-/// @test Editing an existing message returns true.
 TEST_F(MessageFixture, EditMessageExistingSucceeds)
 {
-    mgr.sendMessage("original", validUser, channelId, std::chrono::steady_clock::now());
-    EXPECT_TRUE(mgr.editMessage(1, "edited"));
+    ASSERT_RESULT_SUCCESS(mgr.sendMessage("original", kValidFd, channelId, std::chrono::steady_clock::now()), success::Code::message_added);
+    EXPECT_RESULT_SUCCESS(mgr.editMessage(validUser, 1, "edited"), success::Code::message_edited);
 }
 
-/// @test After editing, the updated content is readable from the repo.
 TEST_F(MessageFixture, EditMessageUpdatesContent)
 {
-    mgr.sendMessage("original", validUser, channelId, std::chrono::steady_clock::now());
-    mgr.editMessage(1, "new content");
+    ASSERT_RESULT_SUCCESS(mgr.sendMessage("original", kValidFd, channelId, std::chrono::steady_clock::now()), success::Code::message_added);
+    ASSERT_RESULT_SUCCESS(mgr.editMessage(validUser, 1, "new content"), success::Code::message_edited);
     EXPECT_EQ(msgRepo.getMessage(1).getContent(), "new content");
 }
 
-/// @test Editing a message preserves the original sender name.
 TEST_F(MessageFixture, EditMessagePreservesSenderName)
 {
-    mgr.sendMessage("original", validUser, channelId, std::chrono::steady_clock::now());
-    mgr.editMessage(1, "changed");
+    ASSERT_RESULT_SUCCESS(mgr.sendMessage("original", kValidFd, channelId, std::chrono::steady_clock::now()), success::Code::message_added);
+    ASSERT_RESULT_SUCCESS(mgr.editMessage(validUser, 1, "changed"), success::Code::message_edited);
     EXPECT_EQ(msgRepo.getMessage(1).getSenderName(), validUser);
 }
 
-/// @test Editing a non-existent message — documents the current (unsafe) behaviour.
-/// @note editMessage does NOT check existence first; it operates on a default-constructed Message.
-///       This test documents the known behaviour: it should NOT crash (it may return false though).
+TEST_F(MessageFixture, EditMessageByOtherUserFails)
+{
+    ASSERT_RESULT_SUCCESS(mgr.sendMessage("original", kValidFd, channelId, std::chrono::steady_clock::now()), success::Code::message_added);
+    EXPECT_RESULT_DOMAIN_ERROR(mgr.editMessage("bob", 1, "changed"), errors::Code::forbidden);
+    EXPECT_EQ(msgRepo.getMessage(1).getContent(), "original");
+}
+
 TEST_F(MessageFixture, EditMessageNonExistentDoesNotCrash)
 {
-    // We just verify no exception/crash escapes; the return value may be false.
-    EXPECT_NO_FATAL_FAILURE(mgr.editMessage(999, "new"));
+    EXPECT_RESULT_DOMAIN_ERROR(mgr.editMessage(validUser, 999, "new"), errors::Code::message_not_found);
 }
 
-// ---------------------------------------------------------------------------
-// getChannelMessages
-// ---------------------------------------------------------------------------
-
-/// @test Getting messages for a channel with no messages returns an empty vector.
 TEST_F(MessageFixture, GetChannelMessagesEmptyChannelReturnsEmptyVector)
 {
-    auto msgs = mgr.getChannelMessages(channelId);
-    ASSERT_TRUE(msgs.has_value());
-    EXPECT_TRUE(msgs->empty());
+    auto messages = mgr.getChannelMessages(channelId);
+    ASSERT_TRUE(messages.has_value());
+    EXPECT_TRUE(messages->empty());
 }
 
-/// @test Getting messages for a non-existent channel returns nullopt.
 TEST_F(MessageFixture, GetChannelMessagesNonExistentChannelReturnsNullopt)
 {
     EXPECT_FALSE(mgr.getChannelMessages(999).has_value());
 }
 
-/// @test After sending one message, getChannelMessages returns exactly one message.
 TEST_F(MessageFixture, GetChannelMessagesReturnsOneAfterOneSend)
 {
-    mgr.sendMessage("hello", validUser, channelId, std::chrono::steady_clock::now());
-    auto msgs = mgr.getChannelMessages(channelId);
-    ASSERT_TRUE(msgs.has_value());
-    EXPECT_EQ(msgs->size(), 1u);
+    ASSERT_RESULT_SUCCESS(mgr.sendMessage("hello", kValidFd, channelId, std::chrono::steady_clock::now()), success::Code::message_added);
+    auto messages = mgr.getChannelMessages(channelId);
+    ASSERT_TRUE(messages.has_value());
+    EXPECT_EQ(messages->size(), 1u);
 }
 
-/// @test Messages sent to different channels are not mixed together.
 TEST_F(MessageFixture, GetChannelMessagesDoesNotMixChannels)
 {
-    chRepo.addChannel(Channel{2, "other", {}, {}, false});
-    mgr.sendMessage("ch1 msg", validUser, channelId, std::chrono::steady_clock::now());
-    mgr.sendMessage("ch2 msg", validUser, 2, std::chrono::steady_clock::now());
+    chRepo.addChannel(Channel{2, "other", {}, {validUser}, false});
 
-    auto msgs1 = mgr.getChannelMessages(channelId);
-    auto msgs2 = mgr.getChannelMessages(2);
-    ASSERT_TRUE(msgs1.has_value());
-    ASSERT_TRUE(msgs2.has_value());
-    EXPECT_EQ(msgs1->size(), 1u);
-    EXPECT_EQ(msgs2->size(), 1u);
-    EXPECT_EQ(msgs1->at(0).getContent(), "ch1 msg");
-    EXPECT_EQ(msgs2->at(0).getContent(), "ch2 msg");
+    ASSERT_RESULT_SUCCESS(mgr.sendMessage("ch1 msg", kValidFd, channelId, std::chrono::steady_clock::now()), success::Code::message_added);
+    ASSERT_RESULT_SUCCESS(mgr.sendMessage("ch2 msg", kValidFd, 2, std::chrono::steady_clock::now()), success::Code::message_added);
+
+    auto channelOneMessages = mgr.getChannelMessages(channelId);
+    auto channelTwoMessages = mgr.getChannelMessages(2);
+    ASSERT_TRUE(channelOneMessages.has_value());
+    ASSERT_TRUE(channelTwoMessages.has_value());
+    EXPECT_EQ(channelOneMessages->size(), 1u);
+    EXPECT_EQ(channelTwoMessages->size(), 1u);
+    EXPECT_EQ(channelOneMessages->at(0).getContent(), "ch1 msg");
+    EXPECT_EQ(channelTwoMessages->at(0).getContent(), "ch2 msg");
 }
 
-/// @test Sending multiple messages to a channel — all are returned.
 TEST_F(MessageFixture, GetChannelMessagesReturnsAllMessages)
 {
     for (int i = 0; i < 5; ++i)
-        mgr.sendMessage("msg " + std::to_string(i), validUser, channelId,
-                        std::chrono::steady_clock::now());
-    auto msgs = mgr.getChannelMessages(channelId);
-    ASSERT_TRUE(msgs.has_value());
-    EXPECT_EQ(msgs->size(), 5u);
+    {
+        ASSERT_RESULT_SUCCESS(mgr.sendMessage("msg " + std::to_string(i), kValidFd, channelId,
+                                             std::chrono::steady_clock::now()),
+                              success::Code::message_added);
+    }
+
+    auto messages = mgr.getChannelMessages(channelId);
+    ASSERT_TRUE(messages.has_value());
+    EXPECT_EQ(messages->size(), 5u);
 }

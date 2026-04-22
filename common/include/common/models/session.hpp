@@ -3,6 +3,7 @@
 #include <common/models/user.hpp>
 #include <chrono>
 #include <nlohmann/json.hpp>
+#include <common/utilities/json_serializable.hpp>
 using json = nlohmann::json;
 
 /**
@@ -11,7 +12,7 @@ using json = nlohmann::json;
  * Przechowuje powiązanie między identyfikatorem sesji a użytkownikiem
  * oraz czas ostatniej aktywności do wykrywania nieaktywnych sesji.
  */
-class Session
+class Session : public JSONSerializable
 {
 public:
     Session() = default;
@@ -52,11 +53,17 @@ public:
     /// @brief Porównuje dwie sesje po identyfikatorze sesji.
     bool operator==(const Session &other) const;
 
-    /// @brief Serializuje sesję do formatu JSON.
-    json toJson() const;
+    /**
+     * @brief Serializuje sesję do obiektu JSON.
+     * @return Obiekt JSON reprezentujący sesję.
+     */
+    json toJson() const override;
 
-    /// @brief Deserializuje sesję z formatu JSON.
-    static Session fromJson(const json &j);
+    /**
+     * @brief Deserializuje sesję z obiektu JSON.
+     * @param j Obiekt JSON z danymi sesji.
+     */
+    void fromJson(const json &j) override;
 
 private:
     int sessionId;                                                 ///< Identyfikator sesji.

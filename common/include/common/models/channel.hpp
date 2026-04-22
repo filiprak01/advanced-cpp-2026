@@ -4,6 +4,7 @@
 #include <vector>
 #include <common/models/user.hpp>
 #include <common/models/message.hpp>
+#include <common/utilities/json_serializable.hpp>
 #include <nlohmann/json.hpp>
 using json = nlohmann::json;
 
@@ -13,7 +14,7 @@ using json = nlohmann::json;
  * Kanał może być publiczny (do 32 użytkowników) lub prywatny (konwersacja 1:1).
  * Przechowuje listę wiadomości i uczestników oraz stan aktywności kanału.
  */
-class Channel
+class Channel : public JSONSerializable
 {
 public:
     Channel() = default;
@@ -107,10 +108,10 @@ public:
     const bool operator==(const Channel &other) const;
 
     /// @brief Serializuje kanał do formatu JSON.
-    json toJson() const;
+    json toJson() const override;
 
     /// @brief Deserializuje kanał z formatu JSON.
-    static Channel fromJson(const json &j);
+    void fromJson(const json &j) override;
 
 private:
     int channelId;                           ///< Unikalny identyfikator kanału.

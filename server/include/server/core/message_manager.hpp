@@ -2,6 +2,8 @@
 #include <server/repos/message_repo.hpp>
 #include <server/repos/user_repo.hpp>
 #include <server/repos/channel_repo.hpp>
+#include <server/core/connection_manager.hpp>
+#include <server/core/domain_result.hpp>
 #include <unordered_map>
 #include <optional>
 
@@ -22,7 +24,7 @@ public:
      * @param nextId       Początkowa wartość licznika identyfikatorów.
      * @param messageMap   Mapa początkowa: id wiadomości → id kanału.
      */
-    MessageManager(MessageRepository &messageRepo, UserRepository &userRepo, ChannelRepository &channelRepo, int nextId, const std::unordered_map<int, int> &messageMap) : messageRepository(messageRepo), userRepository(userRepo), channelRepository(channelRepo), nextMessageId(nextId), messageMap(messageMap) {}
+    MessageManager(ConnectionManager &connectionManager, MessageRepository &messageRepo, UserRepository &userRepo, ChannelRepository &channelRepo, int nextId, const std::unordered_map<int, int> &messageMap) : connectionManager(connectionManager), messageRepository(messageRepo), userRepository(userRepo), channelRepository(channelRepo), nextMessageId(nextId), messageMap(messageMap) {}
 
     /**
      * @brief Wysyła wiadomość do kanału.
@@ -32,14 +34,14 @@ public:
      * @param timestamp  Czas wysyłania wiadomości.
      * @return @c true jeśli wysyłanie się powiódło.
      */
-    bool sendMessage(const std::string &content, std::string senderId, int channelId, const std::chrono::steady_clock::time_point &timestamp);
+    DomainResult sendMessage(const std::string &content, int fd, int channelId, const std::chrono::steady_clock::time_point &timestamp, Message *createdMessage = nullptr);
 
     /**
      * @brief Usuwa wiadomość.
      * @param messageId Identyfikator wiadomości do usunięcia.
      * @return @c true jeśli usunięcie się powiódło.
      */
-    bool deleteMessage(int messageId);
+    DomainResult deleteMessage(std::string requestorName, int messageId);
 
     /**
      * @brief Edytuje treść wiadomości.
@@ -47,7 +49,7 @@ public:
      * @param newContent Nowa treść wiadomości.
      * @return @c true jeśli edycja się powiódła.
      */
-    bool editMessage(int messageId, const std::string &newContent);
+    DomainResult editMessage(std::string requestorName, int messageId, const std::string &newContent);
 
     /**
      * @brief Pobiera wszystkie wiadomości z kanału.
@@ -56,7 +58,10 @@ public:
      */
     std::optional<std::vector<Message>> getChannelMessages(int channelId);
 
+    std::optional<int> getChannelIdFromMessage(int messageId) const;
+
 private:
+    ConnectionManager &connectionManager;
     MessageRepository &messageRepository;    ///< Repozytorium wiadomości.
     UserRepository &userRepository;          ///< Repozytorium użytkowników.
     ChannelRepository &channelRepository;    ///< Repozytorium kanałów.

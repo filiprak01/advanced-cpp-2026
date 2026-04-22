@@ -22,7 +22,7 @@ public:
      * @brief Wykonuje zapis danych w podanym kontekście.
      * @param context Kontekst menedżerów serwera.
      */
-    void perform(ManagerContext &context) override;
+    void perform(ManagerContext &context, int clientFd) override;
 
 private:
     std::string filePath; ///< Ścieżka do pliku zapisu.

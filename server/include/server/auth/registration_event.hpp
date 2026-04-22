@@ -22,7 +22,7 @@ public:
      * @brief Wykonuje rejestrację w podanym kontekście.
      * @param context Kontekst menedżerów serwera.
      */
-    void perform(ManagerContext &context) override;
+    void perform(ManagerContext &context, int clientFd) override;
 
 private:
     std::string username; ///< Żądana nazwa użytkownika.

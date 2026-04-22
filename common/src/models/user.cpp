@@ -14,10 +14,9 @@ json User::toJson() const
     return j;
 }
 
-User User::fromJson(const json &j)
+void User::fromJson(const json &j)
 {
-    std::string username = j.at("username").get<std::string>();
-    std::string passwordHash = j.at("passwordHash").get<std::string>();
-    std::string base64salt = j.at("base64salt").get<std::string>();
-    return User(username, passwordHash, base64salt);
+    username = j.at("username").get<std::string>();
+    passwordHash = j.at("passwordHash").get<std::string>();
+    base64salt = j.at("base64salt").get<std::string>();
 }

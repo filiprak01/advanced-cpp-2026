@@ -3,7 +3,7 @@
 #include <vector>
 #include <server/core/event.hpp>
 #include <server/core/manager_context.hpp>
-
+#include <common/const/event_messages.hpp>
 /**
  * @brief Zdarzenie tworzenia nowego kanału publicznego.
  *
@@ -25,7 +25,7 @@ public:
      * @brief Wykonuje tworzenie kanału w podanym kontekście.
      * @param context Kontekst menedżerów serwera.
      */
-    void perform(ManagerContext &context) override;
+    void perform(ManagerContext &context, int clientFd) override;
 
 private:
     std::string name;                   ///< Nazwa nowego kanału.

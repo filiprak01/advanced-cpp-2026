@@ -1,0 +1,88 @@
+{
+  "version": 3,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 22,
+    "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "debug",
+      "displayName": "Debug (server + client backends)",
+      "generator": "Unix Makefiles",
+      "binaryDir": "${sourceDir}/build/presets/debug",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "BUILD_SERVER_BACKEND": "ON",
+        "BUILD_CLIENT_BACKEND": "ON",
+        "BUILD_BACKEND_TESTS": "OFF"
+      }
+    },
+    {
+      "name": "fast",
+      "displayName": "Debug (same as default)",
+      "inherits": "debug",
+      "binaryDir": "${sourceDir}/build/presets/fast"
+    },
+    {
+      "name": "server-only",
+      "displayName": "Debug (server backend only)",
+      "inherits": "debug",
+      "binaryDir": "${sourceDir}/build/presets/server-only",
+      "cacheVariables": {
+        "BUILD_CLIENT_BACKEND": "OFF",
+        "BUILD_BACKEND_TESTS": "OFF"
+      }
+    },
+    {
+      "name": "client-only",
+      "displayName": "Debug (client backend only)",
+      "inherits": "debug",
+      "binaryDir": "${sourceDir}/build/presets/client-only",
+      "cacheVariables": {
+        "BUILD_SERVER_BACKEND": "OFF",
+        "BUILD_BACKEND_TESTS": "OFF"
+      }
+    },
+    {
+      "name": "debug-tests",
+      "displayName": "Debug (with backend tests)",
+      "inherits": "debug",
+      "binaryDir": "${sourceDir}/build/presets/debug-tests",
+      "cacheVariables": {
+        "BUILD_BACKEND_TESTS": "ON"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "debug",
+      "configurePreset": "debug"
+    },
+    {
+      "name": "fast",
+      "configurePreset": "fast"
+    },
+    {
+      "name": "server-only",
+      "configurePreset": "server-only"
+    },
+    {
+      "name": "client-only",
+      "configurePreset": "client-only"
+    },
+    {
+      "name": "debug-tests",
+      "configurePreset": "debug-tests"
+    }
+  ],
+  "testPresets": [
+    {
+      "name": "debug",
+      "configurePreset": "debug-tests",
+      "output": {
+        "outputOnFailure": true
+      }
+    }
+  ]
+}

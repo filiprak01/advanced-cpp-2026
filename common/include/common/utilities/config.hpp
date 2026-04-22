@@ -1,5 +1,7 @@
 #pragma once
 #include <string>
+#include <nlohmann/json.hpp>
+using json = nlohmann::json;
 
 /**
  * @brief Konfiguracja serwera PWChat wczytywana z pliku JSON.
@@ -114,6 +116,18 @@ public:
     /// @brief Zwraca @c true jeśli logowanie na konsolę jest włączone.
     bool isConsoleLoggingEnabled() const { return enableConsoleLogging; }
 
+    /**
+     * @brief Serializuje konfigurację serwera do obiektu JSON.
+     * @return Obiekt JSON reprezentujący konfigurację.
+     */
+    json toJson() const;
+
+    /**
+     * @brief Deserializuje konfigurację serwera z obiektu JSON.
+     * @param j Obiekt JSON z danymi konfiguracji.
+     */
+    void fromJson(const json &j);
+
 private:
     std::string host;                  ///< Adres hosta serwera.
     int port;                          ///< Numer portu.
@@ -194,6 +208,18 @@ public:
     int getMessageCacheSize() const { return messageCacheSize; }
     /// @brief Zwraca @c true jeśli wyświetlanie stanu połączenia jest włączone.
     bool isShowConnectionStatusEnabled() const { return showConnectionStatus; }
+
+    /**
+     * @brief Serializuje konfigurację klienta do obiektu JSON.
+     * @return Obiekt JSON reprezentujący konfigurację.
+     */
+    json toJson() const;
+
+    /**
+     * @brief Deserializuje konfigurację klienta z obiektu JSON.
+     * @param j Obiekt JSON z danymi konfiguracji.
+     */
+    void fromJson(const json &j);
 
 private:
     int serverIp;              ///< Adres IP serwera.

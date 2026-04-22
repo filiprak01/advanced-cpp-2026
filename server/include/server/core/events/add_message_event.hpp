@@ -1,6 +1,7 @@
 #pragma once
 #include <server/core/event.hpp>
 #include <server/core/manager_context.hpp>
+#include <common/const/event_messages.hpp>
 
 /**
  * @brief Zdarzenie dodania nowej wiadomości do kanału.
@@ -24,7 +25,7 @@ public:
      * @brief Wykonuje dodanie wiadomości w podanym kontekście.
      * @param context Kontekst menedżerów serwera.
      */
-    void perform(ManagerContext &context) override;
+    void perform(ManagerContext &context, int clientFd) override;
 
 private:
     std::string senderName;                          ///< Nazwa nadawcy wiadomości.

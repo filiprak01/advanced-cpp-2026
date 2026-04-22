@@ -1,5 +1,30 @@
 # PWChat
 
+## Quick Links
+
+- Implemented scaffold overview: [OVERVIEW.md](OVERVIEW.md)
+- Deadline-first guide: [DEADLINE_GUIDE.md](DEADLINE_GUIDE.md)
+- Optional stretch goals: [EXTENSION.md](EXTENSION.md)
+- Detailed backend plan: [BACKEND_IMPLEMENTATION_GUIDE.md](BACKEND_IMPLEMENTATION_GUIDE.md)
+- Detailed client-backend plan: [ClientImplementation.md](ClientImplementation.md)
+
+## Test Policy
+
+Tests are optional during normal implementation.
+
+- Default builds do not compile tests.
+- Enable tests only when you want them:
+  `cmake --preset debug-tests && cmake --build --preset debug-tests`
+- Fast local verification:
+  `bash scripts/test-fast.sh`
+
+## Documentation
+
+- Generate Doxygen docs:
+  `./scripts/gen-docs.sh`
+- Main documentation page:
+  [OVERVIEW.md](OVERVIEW.md)
+
 ## Struktura katalogów
 
 ```

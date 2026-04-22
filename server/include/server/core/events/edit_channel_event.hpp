@@ -24,7 +24,7 @@ public:
      * @brief Wykonuje edycję kanału w podanym kontekście.
      * @param context Kontekst menedżerów serwera.
      */
-    void perform(ManagerContext &context) override;
+    void perform(ManagerContext &context, int clientFd) override;
 
 private:
     int channelId;       ///< Identyfikator kanału.

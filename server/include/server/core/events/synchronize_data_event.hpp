@@ -14,19 +14,13 @@ class SynchronizeDataEvent : public Event
 public:
     /**
      * @brief Tworzy zdarzenie synchronizacji.
-     * @param clientFd  Deskryptor gniazda klienta żądającego synchronizacji.
-     * @param userId    Identyfikator użytkownika.
+     * @param userName Nazwa użytkownika żądającego synchronizacji.
      */
-    SynchronizeDataEvent(int clientFd, const std::string &userName)
-        : clientFd(clientFd), userName(userName) {}
+    SynchronizeDataEvent() = default;
 
     /**
      * @brief Wykonuje synchronizację danych w podanym kontekście.
      * @param context Kontekst menedżerów serwera.
      */
-    void perform(ManagerContext &context) override;
-
-private:
-    int clientFd;         ///< Deskryptor gniazda klienta.
-    std::string userName; ///< Nazwa użytkownika.
+    void perform(ManagerContext &context, int clientFd) override;
 };

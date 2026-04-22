@@ -1,13 +1,18 @@
 #include <server/auth/auth_manager.hpp>
 #include <iostream>
-bool AuthManager::authenticate(const std::string &username, const std::string &password)
+DomainResult AuthManager::authenticate(const std::string &username, const std::string &password)
 {
     User userOpt = userRepository.getUser(username);
     if (userOpt.getUsername() == "")
     {
-        return false;
+        return DomainResult::domainError(errors::Code::unauthorized);
     }
-    return verifyPassword(password, userOpt);
+    if (!verifyPassword(password, userOpt))
+    {
+        return DomainResult::domainError(errors::Code::unauthorized);
+    }
+
+    return DomainResult::success(success::Code::user_logged_in);
 }
 bool AuthManager::verifyPassword(const std::string password, const User &user)
 {

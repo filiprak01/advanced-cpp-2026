@@ -14,41 +14,89 @@ bool SessionManager::isSessionValid(const int &sessionId)
 }
 bool SessionManager::cleanInactiveSessions()
 {
+    std::vector<std::string> users;
     for (const auto &userSessionId : userSessions)
     {
         int sessionId = userSessionId.second;
         if (!sessionRepository.sessionExists(sessionId) || !isSessionValid(sessionId))
         {
-            removeUserSession(userSessionId.first);
+            users.push_back(userSessionId.first);
         }
+    }
+    for (std::string &user : users)
+    {
+        removeUserSession(user);
     }
     return true;
 }
-bool SessionManager::createSession(const std::string &userName)
+bool SessionManager::hasSession(int fd)
 {
-    Session session = Session(nextSessionId++, userName, std::chrono::steady_clock::now());
+    cleanInactiveSessions();
+    std::string username = connectionManager.getUsernameFromFd(fd);
+    if (username == "")
+    {
+        return false;
+    }
+    return userSessions.count(username) > 0;
+}
+
+bool SessionManager::createSession(int fd)
+{
+    std::string username = connectionManager.getUsernameFromFd(fd);
+    if (username == "")
+    {
+        return false;
+    }
+    Session session = Session(nextSessionId++, username, std::chrono::steady_clock::now());
     if (sessionRepository.sessionExists(session.getSessionId()))
     {
         return false;
     }
+
+    auto userSession = userSessions.find(username);
+    if (userSession != userSessions.end())
+    {
+        if (sessionRepository.sessionExists(userSession->second))
+        {
+            sessionRepository.removeSession(userSession->second);
+        }
+        userSessions.erase(username);
+    }
+
     sessionRepository.addSession(session);
-    userSessions[userName] = session.getSessionId();
+    userSessions[username] = session.getSessionId();
     return true;
 }
 bool SessionManager::removeUserSession(const std::string &userName)
 {
-    int session_id = userSessions[userName];
+    auto session = userSessions.find(userName);
+    if (session == userSessions.end())
+    {
+        return true;
+    }
+    int session_id = session->second;
     if (!sessionRepository.sessionExists(session_id))
     {
+        userSessions.erase(userName);
         return false;
     }
     sessionRepository.removeSession(session_id);
     userSessions.erase(userName);
     return true;
 }
-bool SessionManager::updateUserSession(const std::string &userName)
+bool SessionManager::updateUserSession(int fd)
 {
-    int session_id = userSessions[userName];
+    std::string username = connectionManager.getUsernameFromFd(fd);
+    if (username == "")
+    {
+        return false;
+    }
+    auto session = userSessions.find(username);
+    if (session == userSessions.end())
+    {
+        return false;
+    }
+    int session_id = session->second;
     if (!sessionRepository.sessionExists(session_id))
     {
         return false;

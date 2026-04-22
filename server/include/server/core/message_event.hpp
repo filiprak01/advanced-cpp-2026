@@ -11,7 +11,7 @@ class MessageEvent : public Event
 {
 public:
     MessageEvent(std::string senderName, int channelId, const std::string &content) : senderName(senderName), channelId(channelId), content(content) {}
-    void perform(ManagerContext &context) override;
+    void perform(ManagerContext &context, int clientFd) override;
 
 private:
     std::string senderName;                          ///< Identyfikator nadawcy wiadomości (do uzupełnienia podczas wykonania).
