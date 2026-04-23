@@ -15,8 +15,9 @@ class CreateChannelEvent : public Event
 public:
     /**
      * @brief Tworzy zdarzenie tworzenia kanału.
-     * @param name    Nazwa nowego kanału.
-     * @param userIds Początkowa lista identyfikatorów uczestników.
+     * @param name      Nazwa nowego kanału.
+     * @param userNames Początkowa lista nazw uczestników.
+     * @param isPrivate Flaga kanału prywatnego.
      */
     CreateChannelEvent(const std::string &name, const std::vector<std::string> &userNames, bool isPrivate)
         : name(name), userNames(userNames), isPrivate(isPrivate) {}
@@ -24,6 +25,7 @@ public:
     /**
      * @brief Wykonuje tworzenie kanału w podanym kontekście.
      * @param context Kontekst menedżerów serwera.
+     * @param clientFd Deskryptor klienta wysyłającego zadanie.
      */
     void perform(ManagerContext &context, int clientFd) override;
 

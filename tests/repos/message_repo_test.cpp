@@ -29,3 +29,15 @@ TEST_F(MessageRepositoryTest, RemoveMessageDeletesMessage) {}
 
 /// @test updateMessage aktualizuje treść wiadomości.
 TEST_F(MessageRepositoryTest, UpdateMessageModifiesMessage) {}
+
+TEST_F(MessageRepositoryTest, JsonRoundTripPreservesMessages)
+{
+    repo.addMessage(Message(42, "hello", "alice", std::chrono::steady_clock::now()));
+
+    MessageRepository restored;
+    restored.fromJson(repo.toJson());
+
+    ASSERT_TRUE(restored.messageExists(42));
+    EXPECT_EQ(restored.getMessage(42).getContent(), "hello");
+    EXPECT_EQ(restored.getMessage(42).getSenderName(), "alice");
+}

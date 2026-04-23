@@ -22,7 +22,9 @@ public:
           maxChannels(50), maxUsersPerChannel(32),
           maxMessageLength(1000), maxMessagesPerSecond(5),
           maxEventQueueSize(1000), eventProcessingThreadPoolSize(4),
-          logLevel(1), enableConsoleLogging(true) {}
+          logLevel(1), enableConsoleLogging(true),
+          userRepoFile("data/users.json"), sessionRepoFile("data/sessions.json"),
+          channelRepoFile("data/channels.json"), messageRepoFile("data/messages.json") {}
 
     /**
      * @brief Tworzy pełną konfigurację serwera.
@@ -60,7 +62,9 @@ public:
           maxChannels(maxChannels), maxUsersPerChannel(maxUsersPerChannel),
           maxMessageLength(maxMessageLength), maxMessagesPerSecond(maxMessagesPerSecond),
           maxEventQueueSize(maxEventQueueSize), eventProcessingThreadPoolSize(eventProcessingThreadPoolSize),
-          logLevel(logLevel), enableConsoleLogging(enableConsoleLogging) {}
+          logLevel(logLevel), enableConsoleLogging(enableConsoleLogging),
+          userRepoFile("data/users.json"), sessionRepoFile("data/sessions.json"),
+          channelRepoFile("data/channels.json"), messageRepoFile("data/messages.json") {}
 
     /**
      * @brief Wczytuje konfigurację serwera z pliku JSON.
@@ -115,6 +119,14 @@ public:
     int getLogLevel() const { return logLevel; }
     /// @brief Zwraca @c true jeśli logowanie na konsolę jest włączone.
     bool isConsoleLoggingEnabled() const { return enableConsoleLogging; }
+    /// @brief Zwraca ścieżkę pliku repozytorium użytkowników.
+    std::string getUserRepoFile() const { return userRepoFile; }
+    /// @brief Zwraca ścieżkę pliku repozytorium sesji.
+    std::string getSessionRepoFile() const { return sessionRepoFile; }
+    /// @brief Zwraca ścieżkę pliku repozytorium kanałów.
+    std::string getChannelRepoFile() const { return channelRepoFile; }
+    /// @brief Zwraca ścieżkę pliku repozytorium wiadomości.
+    std::string getMessageRepoFile() const { return messageRepoFile; }
 
     /**
      * @brief Serializuje konfigurację serwera do obiektu JSON.
@@ -147,6 +159,10 @@ private:
     int eventProcessingThreadPoolSize; ///< Rozmiar puli wątków.
     int logLevel;                      ///< Poziom logowania (0-3).
     bool enableConsoleLogging;         ///< Czy logować na konsolę.
+    std::string userRepoFile;          ///< Plik trwałego repozytorium użytkowników.
+    std::string sessionRepoFile;       ///< Plik trwałego repozytorium sesji.
+    std::string channelRepoFile;       ///< Plik trwałego repozytorium kanałów.
+    std::string messageRepoFile;       ///< Plik trwałego repozytorium wiadomości.
 };
 
 /**
@@ -222,12 +238,12 @@ public:
     void fromJson(const json &j);
 
 private:
-    int serverIp;              ///< Adres IP serwera.
-    int serverPort;            ///< Port serwera.
-    bool autoReconnect;        ///< Czy automatycznie wznawiać połączenie.
-    int reconnectIntervalMs;   ///< Interwał wznawiania połączenia w ms.
-    int maxMessageLength;      ///< Maks. długość wiadomości.
-    bool sendOnEnter;          ///< Czy wysyłać po Enter.
-    int messageCacheSize;      ///< Rozmiar pamięci podręcznej wiadomości.
-    bool showConnectionStatus; ///< Czy wyświetlać stan połączenia.
+    int serverIp{0x7f000001};        ///< Adres IP serwera.
+    int serverPort{8090};            ///< Port serwera.
+    bool autoReconnect{true};        ///< Czy automatycznie wznawiać połączenie.
+    int reconnectIntervalMs{5000};   ///< Interwał wznawiania połączenia w ms.
+    int maxMessageLength{1000};      ///< Maks. długość wiadomości.
+    bool sendOnEnter{true};          ///< Czy wysyłać po Enter.
+    int messageCacheSize{100};       ///< Rozmiar pamięci podręcznej wiadomości.
+    bool showConnectionStatus{true}; ///< Czy wyświetlać stan połączenia.
 };

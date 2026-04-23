@@ -43,3 +43,13 @@ DomainResult RegistrationManager::registerUser(const std::string &username, cons
 
     return DomainResult::success(success::Code::user_registered);
 }
+
+std::vector<std::string> RegistrationManager::getRegisteredUsernames() const
+{
+    std::vector<std::string> usernames;
+    for (const auto &user : userRepo.getAllUsers())
+    {
+        usernames.push_back(user.getUsername());
+    }
+    return usernames;
+}

@@ -10,6 +10,7 @@
 #include <server/auth/registration_manager.hpp>
 #include <server/repos/user_repo.hpp>
 #include <server/auth/password_hasher.hpp>
+#include <algorithm>
 #include "domain_result_expect.hpp"
 
 /// @brief Fixture — domyślna konfiguracja (min 3 / max 20 username, min 8 / max 64 password).
@@ -64,6 +65,19 @@ TEST_F(RegFixture, TwoUsersWithSamePasswordHaveDifferentHashes)
     ASSERT_RESULT_SUCCESS(mgr.registerUser("bob", "SamePass1!"), success::Code::user_registered);
     EXPECT_NE(repo.getUser("alice").getPasswordHash(),
               repo.getUser("bob").getPasswordHash());
+}
+
+/// @test Menedżer udostępnia listę nazw użytkowników bez danych uwierzytelniających.
+TEST_F(RegFixture, RegisteredUsernamesContainCreatedUsersOnly)
+{
+    ASSERT_RESULT_SUCCESS(mgr.registerUser("alice", "Password1!"), success::Code::user_registered);
+    ASSERT_RESULT_SUCCESS(mgr.registerUser("bob", "Password1!"), success::Code::user_registered);
+
+    const std::vector<std::string> usernames = mgr.getRegisteredUsernames();
+
+    EXPECT_NE(std::find(usernames.begin(), usernames.end(), "alice"), usernames.end());
+    EXPECT_NE(std::find(usernames.begin(), usernames.end(), "bob"), usernames.end());
+    EXPECT_EQ(std::find(usernames.begin(), usernames.end(), "Password1!"), usernames.end());
 }
 
 // ---------------------------------------------------------------------------

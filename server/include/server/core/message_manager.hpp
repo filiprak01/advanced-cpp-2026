@@ -18,6 +18,7 @@ class MessageManager
 public:
     /**
      * @brief Tworzy menedżer wiadomości.
+     * @param connectionManager Menedżer aktywnych połączeń.
      * @param messageRepo  Repozytorium wiadomości.
      * @param userRepo     Repozytorium użytkowników.
      * @param channelRepo  Repozytorium kanałów.
@@ -29,24 +30,27 @@ public:
     /**
      * @brief Wysyła wiadomość do kanału.
      * @param content    Treść wiadomości.
-     * @param senderId   Identyfikator (nazwa) nadawcy.
+     * @param fd         Deskryptor klienta wysyłającego wiadomość.
      * @param channelId  Identyfikator docelowego kanału.
      * @param timestamp  Czas wysyłania wiadomości.
+     * @param createdMessage Opcjonalny wskaźnik na utworzoną wiadomość.
      * @return @c true jeśli wysyłanie się powiódło.
      */
     DomainResult sendMessage(const std::string &content, int fd, int channelId, const std::chrono::steady_clock::time_point &timestamp, Message *createdMessage = nullptr);
 
     /**
      * @brief Usuwa wiadomość.
-     * @param messageId Identyfikator wiadomości do usunięcia.
+     * @param requestorName Nazwa użytkownika wykonującego operację.
+     * @param messageId     Identyfikator wiadomości do usunięcia.
      * @return @c true jeśli usunięcie się powiódło.
      */
     DomainResult deleteMessage(std::string requestorName, int messageId);
 
     /**
      * @brief Edytuje treść wiadomości.
-     * @param messageId  Identyfikator wiadomości.
-     * @param newContent Nowa treść wiadomości.
+     * @param requestorName Nazwa użytkownika wykonującego operację.
+     * @param messageId     Identyfikator wiadomości.
+     * @param newContent    Nowa treść wiadomości.
      * @return @c true jeśli edycja się powiódła.
      */
     DomainResult editMessage(std::string requestorName, int messageId, const std::string &newContent);
@@ -59,6 +63,8 @@ public:
     std::optional<std::vector<Message>> getChannelMessages(int channelId);
 
     std::optional<int> getChannelIdFromMessage(int messageId) const;
+
+    void rebuildIndexFromRepositories();
 
 private:
     ConnectionManager &connectionManager;

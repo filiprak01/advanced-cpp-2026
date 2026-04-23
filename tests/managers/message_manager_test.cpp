@@ -211,3 +211,25 @@ TEST_F(MessageFixture, GetChannelMessagesReturnsAllMessages)
     ASSERT_TRUE(messages.has_value());
     EXPECT_EQ(messages->size(), 5u);
 }
+
+TEST_F(MessageFixture, RebuildIndexRestoresMessageChannelLinks)
+{
+    ASSERT_RESULT_SUCCESS(mgr.sendMessage("persist me", kValidFd, channelId, std::chrono::steady_clock::now()), success::Code::message_added);
+
+    ChannelRepository restoredChannels;
+    MessageRepository restoredMessages;
+    restoredChannels.fromJson(chRepo.toJson());
+    restoredMessages.fromJson(msgRepo.toJson());
+
+    ConnectionManager restoredConnections{-1};
+    MessageManager restoredMgr{restoredConnections, restoredMessages, userRepo, restoredChannels, 1, {}};
+    restoredMgr.rebuildIndexFromRepositories();
+
+    ASSERT_TRUE(restoredMgr.getChannelIdFromMessage(1).has_value());
+    EXPECT_EQ(restoredMgr.getChannelIdFromMessage(1).value(), channelId);
+
+    auto messages = restoredMgr.getChannelMessages(channelId);
+    ASSERT_TRUE(messages.has_value());
+    ASSERT_EQ(messages->size(), 1u);
+    EXPECT_EQ(messages->at(0).getContent(), "persist me");
+}

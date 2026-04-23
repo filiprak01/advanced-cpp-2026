@@ -1,8 +1,12 @@
 #pragma once
 #include <common/models/channel.hpp>
+#include <nlohmann/json.hpp>
 #include <unordered_map>
 #include <shared_mutex>
 #include <mutex>
+#include <vector>
+
+using json = nlohmann::json;
 
 /**
  * @brief Repozytorium kanałów.
@@ -55,6 +59,15 @@ public:
      * @return @c true jeśli aktualizacja się powiódła.
      */
     bool updateChannel(const Channel &newChannel);
+
+    /// @brief Zwraca kopię wszystkich kanałów.
+    std::vector<Channel> getAllChannels() const;
+
+    /// @brief Serializuje repozytorium kanałów do JSON.
+    json toJson() const;
+
+    /// @brief Odtwarza repozytorium kanałów z JSON.
+    void fromJson(const json &j);
 
 private:
     mutable std::shared_mutex mutex;           ///< Blokada synchronizująca dostęp wielowątkowy.

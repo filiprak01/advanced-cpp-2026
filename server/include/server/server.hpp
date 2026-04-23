@@ -53,11 +53,15 @@ private:
      * @param port Numer portu.
      * @return Deskryptor gniazda serwera.
      */
-    static int createAndBindSocket(int port);
+    static int createAndBindSocket(const std::string &host, int port);
+
+    void loadRepositories();
+    void saveRepositories() const;
 
     int server_fd; ///< Deskryptor gniazda nasłuchowego.
 
     ServerConfig config; ///< Konfiguracja serwera (port, limity, timeouty).
+    bool persistenceEnabled; ///< Czy zapisywać i wczytywać repozytoria z plików.
 
     // Repozytoria (własnościowe)
     UserRepository userRepo;       ///< Repozytorium użytkowników.

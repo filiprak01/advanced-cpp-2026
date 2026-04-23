@@ -17,6 +17,7 @@ public:
      * @param senderName Nazwa nadawcy.
      * @param channelId  Identyfikator kanału docelowego.
      * @param content    Treść wiadomości.
+     * @param timestamp  Czas utworzenia wiadomości.
      */
     AddMessageEvent(const std::string &senderName, int channelId, const std::string &content, std::chrono::time_point<std::chrono::steady_clock> timestamp)
         : senderName(senderName), channelId(channelId), content(content), timestamp(timestamp) {}
@@ -24,6 +25,7 @@ public:
     /**
      * @brief Wykonuje dodanie wiadomości w podanym kontekście.
      * @param context Kontekst menedżerów serwera.
+     * @param clientFd Deskryptor klienta wysyłającego zadanie.
      */
     void perform(ManagerContext &context, int clientFd) override;
 

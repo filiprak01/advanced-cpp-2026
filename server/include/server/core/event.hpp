@@ -19,7 +19,6 @@ public:
      * @brief Wykonuje zdarzenie w podanym kontekście menedżerów.
      * @param context   Kontekst zawierający wszystkie menedżery serwera.
      * @param clientFd  Deskryptor gniazda klienta który wywołał zdarzenie.
-     * @param userName  Nazwa użytkownika (pusta jeśli nie zalogowany).
      */
     virtual void perform(ManagerContext &context, int clientFd) = 0;
 };

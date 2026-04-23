@@ -1,13 +1,10 @@
 /**
  * @file server_integration_test.cpp
- * @brief Testy integracyjne serwera PWChat.
+ * @brief Testy integracyjne serwera PWChat dla aktualnego protokolu MVP.
  *
- * Uruchamia serwer na porcie testowym, łączy się przez surowe gniazdo POSIX
- * i weryfikuje odpowiedzi serwera na pełny cykl żądań klienta.
- *
- * Protokół serwera:
- *   - odbiór: JSON zakończony '\n'
- *   - wysyłanie: 4-bajtowy prefiks długości (little-endian / native) + treść
+ * Test uruchamia serwer na porcie testowym, laczy sie przez surowe gniazdo
+ * POSIX i sprawdza odpowiedzi JSON przesylane protokolem:
+ * 4-bajtowa dlugosc w network byte order + payload JSON.
  */
 #include <gtest/gtest.h>
 #include <server/server.hpp>
@@ -25,25 +22,14 @@
 #include <nlohmann/json.hpp>
 using json = nlohmann::json;
 
-// ---------------------------------------------------------------------------
-// Stałe
-// ---------------------------------------------------------------------------
+namespace
+{
+constexpr int TEST_PORT = 19001;
+constexpr int RECV_TIMEOUT_MS = 3000;
 
-static constexpr int TEST_PORT = 19001;
-static constexpr int RECV_TIMEOUT_MS = 3000;
+Server *g_server = nullptr;
+std::thread g_serverThread;
 
-// ---------------------------------------------------------------------------
-// Globalna instancja serwera (uruchamiana raz dla całego zestawu testów)
-// ---------------------------------------------------------------------------
-
-static Server *g_server = nullptr;
-static std::thread g_serverThread;
-
-// ---------------------------------------------------------------------------
-// Pomocnicza klasa gniazda testowego
-// ---------------------------------------------------------------------------
-
-/// @brief Minimalny klient TCP obsługujący protokół serwera PWChat.
 class TestSocket
 {
 public:
@@ -51,13 +37,14 @@ public:
     {
         fd_ = ::socket(AF_INET, SOCK_STREAM, 0);
         if (fd_ < 0)
+        {
             throw std::runtime_error("socket() failed");
+        }
 
-        // Timeout odczytu
-        struct timeval tv{};
-        tv.tv_sec = RECV_TIMEOUT_MS / 1000;
-        tv.tv_usec = (RECV_TIMEOUT_MS % 1000) * 1000;
-        ::setsockopt(fd_, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
+        timeval timeout{};
+        timeout.tv_sec = RECV_TIMEOUT_MS / 1000;
+        timeout.tv_usec = (RECV_TIMEOUT_MS % 1000) * 1000;
+        ::setsockopt(fd_, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout));
 
         sockaddr_in addr{};
         addr.sin_family = AF_INET;
@@ -65,73 +52,93 @@ public:
         addr.sin_port = htons(static_cast<uint16_t>(port));
 
         if (::connect(fd_, reinterpret_cast<sockaddr *>(&addr), sizeof(addr)) < 0)
+        {
             throw std::runtime_error("connect() failed");
-
-        skipBanner(); // Odczyt bannera powitalnego serwera
+        }
     }
 
     ~TestSocket()
     {
         if (fd_ >= 0)
+        {
             ::close(fd_);
+        }
     }
 
-    // Non-copyable
     TestSocket(const TestSocket &) = delete;
     TestSocket &operator=(const TestSocket &) = delete;
 
-    /// @brief Wysyła żądanie JSON zakończone '\n'.
-    void send(const json &msg)
+    void sendJson(const json &message)
     {
-        std::string s = msg.dump() + '\n';
-        if (::send(fd_, s.c_str(), s.size(), MSG_NOSIGNAL) < 0)
-            throw std::runtime_error("send() failed");
+        const std::string payload = message.dump();
+        const uint32_t length = htonl(static_cast<uint32_t>(payload.size()));
+        sendAll(reinterpret_cast<const char *>(&length), sizeof(length));
+        sendAll(payload.data(), payload.size());
     }
 
-    /// @brief Odbiera odpowiedź: 4-bajtowa długość (native LE) + treść.
-    std::string recv()
+    json recvJson()
     {
-        uint32_t len = 0;
-        if (!recvAll(reinterpret_cast<char *>(&len), sizeof(len)))
+        uint32_t lengthNetwork = 0;
+        if (!recvAll(reinterpret_cast<char *>(&lengthNetwork), sizeof(lengthNetwork)))
+        {
             throw std::runtime_error("recv() failed reading length");
+        }
 
-        std::string buf(len, '\0');
-        if (!recvAll(buf.data(), len))
+        const uint32_t length = ntohl(lengthNetwork);
+        std::string payload(length, '\0');
+        if (!recvAll(payload.data(), length))
+        {
             throw std::runtime_error("recv() failed reading body");
+        }
 
-        return buf;
+        return json::parse(payload);
     }
 
 private:
     int fd_{-1};
 
-    /// @brief Czyta dokładnie n bajtów lub zwraca false przy błędzie/EOF.
-    bool recvAll(char *buf, std::size_t n)
+    void sendAll(const char *buffer, std::size_t length)
     {
-        while (n > 0)
+        while (length > 0)
         {
-            ssize_t r = ::recv(fd_, buf, n, 0);
-            if (r <= 0)
+            const ssize_t sent = ::send(fd_, buffer, length, MSG_NOSIGNAL);
+            if (sent <= 0)
+            {
+                throw std::runtime_error("send() failed");
+            }
+            buffer += sent;
+            length -= static_cast<std::size_t>(sent);
+        }
+    }
+
+    bool recvAll(char *buffer, std::size_t length)
+    {
+        while (length > 0)
+        {
+            const ssize_t received = ::recv(fd_, buffer, length, 0);
+            if (received <= 0)
+            {
                 return false;
-            buf += r;
-            n -= static_cast<std::size_t>(r);
+            }
+            buffer += received;
+            length -= static_cast<std::size_t>(received);
         }
         return true;
     }
-
-    /// @brief Odczytuje i odrzuca banner powitalny (tekst do '\n').
-    void skipBanner()
-    {
-        char c = 0;
-        while (::recv(fd_, &c, 1, 0) == 1 && c != '\n')
-        {
-        }
-    }
 };
 
-// ---------------------------------------------------------------------------
-// Fixture
-// ---------------------------------------------------------------------------
+void expectOk(const json &response, const std::string &type)
+{
+    EXPECT_EQ(response.value("type", ""), type);
+    EXPECT_EQ(response.value("status", ""), "ok");
+}
+
+void expectError(const json &response)
+{
+    EXPECT_EQ(response.value("type", ""), "error");
+    EXPECT_EQ(response.value("status", ""), "error");
+}
+} // namespace
 
 class ServerIntegrationTest : public ::testing::Test
 {
@@ -139,9 +146,7 @@ public:
     static void SetUpTestSuite()
     {
         g_server = new Server(TEST_PORT);
-        g_serverThread = std::thread([]
-                                     { g_server->run(); });
-        // Krótkie oczekiwanie, żeby serwer zdążył rozpocząć poll()
+        g_serverThread = std::thread([] { g_server->run(); });
         std::this_thread::sleep_for(std::chrono::milliseconds(150));
     }
 
@@ -154,130 +159,112 @@ public:
     }
 
 protected:
-    /// @brief Tworzy i zwraca nowe gniazdo połączone z serwerem testowym.
-    TestSocket makeSocket() { return TestSocket(TEST_PORT); }
+    TestSocket makeSocket()
+    {
+        return TestSocket(TEST_PORT);
+    }
 };
 
-// ---------------------------------------------------------------------------
-// Rejestracja
-// ---------------------------------------------------------------------------
-
-/// @test Pomyślna rejestracja nowego użytkownika zwraca "register_ok".
 TEST_F(ServerIntegrationTest, RegisterNewUserReturnsRegisterOk)
 {
-    auto sock = makeSocket();
-    sock.send({{"type", "register"}, {"payload", {{"username", "reg_user1"}, {"password", "Password1!"}}}});
-    EXPECT_EQ(sock.recv(), "register_ok");
+    auto socket = makeSocket();
+    socket.sendJson({{"type", "register"}, {"payload", {{"username", "reg_user1"}, {"password", "Password1!"}}}});
+
+    expectOk(socket.recvJson(), "register_response");
+    expectOk(socket.recvJson(), "login_response");
 }
 
-/// @test Próba rejestracji istniejącego użytkownika zwraca "register_failed".
 TEST_F(ServerIntegrationTest, RegisterDuplicateUserReturnsRegisterFailed)
 {
-    auto sock = makeSocket();
-    json req = {{"type", "register"}, {"payload", {{"username", "dup_user"}, {"password", "Password1!"}}}};
-    sock.send(req);
-    EXPECT_EQ(sock.recv(), "register_ok"); // pierwsze – sukces
+    auto socket = makeSocket();
+    const json request = {{"type", "register"}, {"payload", {{"username", "dup_user"}, {"password", "Password1!"}}}};
 
-    auto sock2 = makeSocket();
-    sock2.send(req);
-    EXPECT_EQ(sock2.recv(), "register_failed"); // drugie – duplikat
+    socket.sendJson(request);
+    expectOk(socket.recvJson(), "register_response");
+    expectOk(socket.recvJson(), "login_response");
+
+    auto secondSocket = makeSocket();
+    secondSocket.sendJson(request);
+    expectError(secondSocket.recvJson());
 }
 
-// ---------------------------------------------------------------------------
-// Logowanie
-// ---------------------------------------------------------------------------
-
-/// @test Logowanie poprawnymi danymi zwraca "login_ok".
 TEST_F(ServerIntegrationTest, LoginWithValidCredentialsReturnsLoginOk)
 {
-    auto sock = makeSocket();
-    sock.send({{"type", "register"}, {"payload", {{"username", "auth_user1"}, {"password", "Password1!"}}}});
-    EXPECT_EQ(sock.recv(), "register_ok");
+    auto socket = makeSocket();
+    socket.sendJson({{"type", "register"}, {"payload", {{"username", "auth_user1"}, {"password", "Password1!"}}}});
+    expectOk(socket.recvJson(), "register_response");
+    expectOk(socket.recvJson(), "login_response");
 
-    sock.send({{"type", "login"}, {"payload", {{"username", "auth_user1"}, {"password", "Password1!"}}}});
-    EXPECT_EQ(sock.recv(), "login_ok");
+    socket.sendJson({{"type", "login"}, {"payload", {{"username", "auth_user1"}, {"password", "Password1!"}}}});
+    expectOk(socket.recvJson(), "login_response");
 }
 
-/// @test Logowanie błędnym hasłem zwraca "login_failed".
 TEST_F(ServerIntegrationTest, LoginWithWrongPasswordReturnsLoginFailed)
 {
-    auto sock = makeSocket();
-    sock.send({{"type", "register"}, {"payload", {{"username", "auth_user2"}, {"password", "Password1!"}}}});
-    EXPECT_EQ(sock.recv(), "register_ok");
+    auto socket = makeSocket();
+    socket.sendJson({{"type", "register"}, {"payload", {{"username", "auth_user2"}, {"password", "Password1!"}}}});
+    expectOk(socket.recvJson(), "register_response");
+    expectOk(socket.recvJson(), "login_response");
 
-    sock.send({{"type", "login"}, {"payload", {{"username", "auth_user2"}, {"password", "WrongPass!"}}}});
-    EXPECT_EQ(sock.recv(), "login_failed");
+    socket.sendJson({{"type", "login"}, {"payload", {{"username", "auth_user2"}, {"password", "WrongPass!"}}}});
+    expectError(socket.recvJson());
 }
 
-/// @test Logowanie nieistniejącego użytkownika zwraca "login_failed".
 TEST_F(ServerIntegrationTest, LoginNonexistentUserReturnsLoginFailed)
 {
-    auto sock = makeSocket();
-    sock.send({{"type", "login"}, {"payload", {{"username", "ghost_999"}, {"password", "anypass"}}}});
-    EXPECT_EQ(sock.recv(), "login_failed");
+    auto socket = makeSocket();
+    socket.sendJson({{"type", "login"}, {"payload", {{"username", "ghost_999"}, {"password", "anypass"}}}});
+    expectError(socket.recvJson());
 }
 
-// ---------------------------------------------------------------------------
-// Kontrola dostępu – operacje bez sesji
-// ---------------------------------------------------------------------------
-
-/// @test Wysłanie wiadomości bez logowania zwraca "unauthorized".
 TEST_F(ServerIntegrationTest, AddMessageWithoutLoginReturnsUnauthorized)
 {
-    auto sock = makeSocket();
-    sock.send({{"type", "add_message"},
-               {"payload", {{"senderName", "nobody"}, {"channelId", 1}, {"content", "hello"}}}});
-    EXPECT_EQ(sock.recv(), "unauthorized");
+    auto socket = makeSocket();
+    socket.sendJson({{"type", "add_message"},
+                     {"payload", {{"senderName", "nobody"}, {"channelId", 1}, {"content", "hello"}}}});
+    expectError(socket.recvJson());
 }
 
-/// @test Tworzenie kanału bez logowania zwraca "unauthorized".
 TEST_F(ServerIntegrationTest, CreateChannelWithoutLoginReturnsUnauthorized)
 {
-    auto sock = makeSocket();
-    sock.send({{"type", "create_channel"},
-               {"payload", {{"name", "test-ch"}, {"userNames", json::array()}, {"isPrivate", false}}}});
-    EXPECT_EQ(sock.recv(), "unauthorized");
+    auto socket = makeSocket();
+    socket.sendJson({{"type", "create_channel"},
+                     {"payload", {{"name", "test-ch"}, {"userNames", json::array()}, {"isPrivate", false}}}});
+    expectError(socket.recvJson());
 }
 
-/// @test Synchronizacja bez logowania zwraca "unauthorized".
 TEST_F(ServerIntegrationTest, SynchronizeWithoutLoginReturnsUnauthorized)
 {
-    auto sock = makeSocket();
-    sock.send({{"type", "synchronize"}, {"payload", {{"clientFd", -1}}}});
-    EXPECT_EQ(sock.recv(), "unauthorized");
+    auto socket = makeSocket();
+    socket.sendJson({{"type", "synchronize"}, {"payload", {{"clientFd", -1}}}});
+    expectError(socket.recvJson());
 }
 
-// ---------------------------------------------------------------------------
-// Operacje po zalogowaniu
-// ---------------------------------------------------------------------------
-
-/// @test Zalogowany użytkownik może zsynchronizować dane (odpowiedź "synchronize_ok").
 TEST_F(ServerIntegrationTest, SynchronizeAfterLoginReturnsSynchronizeOk)
 {
-    auto sock = makeSocket();
-    sock.send({{"type", "register"}, {"payload", {{"username", "sync_user1"}, {"password", "Syncpass1!"}}}});
-    EXPECT_EQ(sock.recv(), "register_ok");
+    auto socket = makeSocket();
+    socket.sendJson({{"type", "register"}, {"payload", {{"username", "sync_user1"}, {"password", "Syncpass1!"}}}});
+    expectOk(socket.recvJson(), "register_response");
+    expectOk(socket.recvJson(), "login_response");
 
-    sock.send({{"type", "login"}, {"payload", {{"username", "sync_user1"}, {"password", "Syncpass1!"}}}});
-    EXPECT_EQ(sock.recv(), "login_ok");
+    socket.sendJson({{"type", "login"}, {"payload", {{"username", "sync_user1"}, {"password", "Syncpass1!"}}}});
+    expectOk(socket.recvJson(), "login_response");
 
-    sock.send({{"type", "synchronize"}, {"payload", {{"clientFd", -1}}}});
-    EXPECT_EQ(sock.recv(), "synchronize_ok");
+    socket.sendJson({{"type", "synchronize"}, {"payload", {{"clientFd", -1}}}});
+    expectOk(socket.recvJson(), "sync_response");
 }
 
-/// @test Zalogowany użytkownik może stworzyć kanał.
 TEST_F(ServerIntegrationTest, CreateChannelAfterLoginSucceeds)
 {
-    auto sock = makeSocket();
-    sock.send({{"type", "register"}, {"payload", {{"username", "chan_user1"}, {"password", "Chanpass1!"}}}});
-    EXPECT_EQ(sock.recv(), "register_ok");
+    auto socket = makeSocket();
+    socket.sendJson({{"type", "register"}, {"payload", {{"username", "chan_user1"}, {"password", "Chanpass1!"}}}});
+    expectOk(socket.recvJson(), "register_response");
+    expectOk(socket.recvJson(), "login_response");
 
-    sock.send({{"type", "login"}, {"payload", {{"username", "chan_user1"}, {"password", "Chanpass1!"}}}});
-    EXPECT_EQ(sock.recv(), "login_ok");
+    socket.sendJson({{"type", "login"}, {"payload", {{"username", "chan_user1"}, {"password", "Chanpass1!"}}}});
+    expectOk(socket.recvJson(), "login_response");
 
-    sock.send({{"type", "create_channel"},
-               {"payload", {{"name", "integration-ch"}, {"userNames", {"chan_user1"}}, {"isPrivate", false}}}});
-    std::string resp = sock.recv();
-    // Przyjmujemy "channel_created" lub brak "unauthorized"
-    EXPECT_NE(resp, "unauthorized");
+    socket.sendJson({{"type", "create_channel"},
+                     {"payload", {{"name", "integration-ch"}, {"userNames", {"chan_user1"}}, {"isPrivate", false}}}});
+    expectOk(socket.recvJson(), "channel_created");
 }

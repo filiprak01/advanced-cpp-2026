@@ -23,6 +23,7 @@ public:
     /**
      * @brief Wykonuje edycję kanału w podanym kontekście.
      * @param context Kontekst menedżerów serwera.
+     * @param clientFd Deskryptor klienta wysyłającego zadanie.
      */
     void perform(ManagerContext &context, int clientFd) override;
 

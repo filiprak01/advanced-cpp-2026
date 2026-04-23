@@ -35,3 +35,16 @@ TEST_F(ChannelRepositoryTest, IsChannelActiveReturnsCorrectState) {}
 
 /// @test isChannelPrivate zwraca prywatność kanału.
 TEST_F(ChannelRepositoryTest, IsChannelPrivateReturnsCorrectState) {}
+
+TEST_F(ChannelRepositoryTest, JsonRoundTripPreservesChannels)
+{
+    repo.addChannel(Channel(7, "general", {10, 11}, {"alice", "bob"}, false));
+
+    ChannelRepository restored;
+    restored.fromJson(repo.toJson());
+
+    ASSERT_TRUE(restored.channelExists(7));
+    EXPECT_EQ(restored.getChannel(7).getName(), "general");
+    EXPECT_EQ(restored.getChannel(7).getMessageIds().size(), 2u);
+    EXPECT_EQ(restored.getChannel(7).getUserIds().count("alice"), 1u);
+}

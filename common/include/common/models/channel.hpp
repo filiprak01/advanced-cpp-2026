@@ -27,7 +27,8 @@ public:
      * @param userIds    Zbiór identyfikatorów uczestników kanału.
      * @param isPrivate  @c true jeśli kanał jest prywatny (2 osoby), @c false jeśli publiczny.
      */
-    Channel(const int &channelId, const std::string &name, const std::vector<int> &messageIds, const std::unordered_set<std::string> &userIds, bool isPrivate) : channelId(channelId), name(name), messageIds(messageIds), userIds(userIds), isPrivate(isPrivate), maxUsers(isPrivate ? 2 : 32), isActive(true) {}
+    Channel(int channelId, const std::string &name, const std::vector<int> &messageIds, const std::unordered_set<std::string> &userIds, bool isPrivate)
+        : channelId(channelId), name(name), messageIds(messageIds), userIds(userIds), isPrivate(isPrivate), maxUsers(isPrivate ? 2 : 32), isActive(true) {}
 
     /// @brief Zwraca unikalny identyfikator kanału.
     const int &getChannelId() const
@@ -79,7 +80,7 @@ public:
 
     /**
      * @brief Zwraca nowy kanał z dodanym uczestnikiem.
-     * @param userId Identyfikator użytkownika do dodania.
+     * @param userName Nazwa użytkownika do dodania.
      */
     const Channel addUserId(const std::string &userName) const;
 

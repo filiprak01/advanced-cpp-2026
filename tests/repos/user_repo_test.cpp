@@ -29,3 +29,15 @@ TEST_F(UserRepositoryTest, RemoveUserDeletesUser) {}
 
 // / @test getAllUsers zwraca wszystkich użytkowników.
 TEST_F(UserRepositoryTest, GetAllUsersReturnsAll) {}
+
+TEST_F(UserRepositoryTest, JsonRoundTripPreservesUsers)
+{
+    repo.addUser(User("alice", "hash", "salt"));
+
+    UserRepository restored;
+    restored.fromJson(repo.toJson());
+
+    ASSERT_TRUE(restored.userExists("alice"));
+    EXPECT_EQ(restored.getUser("alice").getPasswordHash(), "hash");
+    EXPECT_EQ(restored.getUser("alice").getBase64salt(), "salt");
+}

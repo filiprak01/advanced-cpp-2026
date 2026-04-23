@@ -15,7 +15,7 @@ public:
     /**
      * @brief Tworzy zdarzenie dodania użytkownika do kanału.
      * @param channelId Identyfikator kanału.
-     * @param userId    Identyfikator użytkownika do dodania.
+     * @param userName  Nazwa użytkownika do dodania.
      */
     AddUserToChannelEvent(int channelId, const std::string &userName)
         : channelId(channelId), userName(userName) {}
@@ -23,6 +23,7 @@ public:
     /**
      * @brief Wykonuje dodanie użytkownika do kanału w podanym kontekście.
      * @param context Kontekst menedżerów serwera.
+     * @param clientFd Deskryptor klienta wysyłającego zadanie.
      */
     void perform(ManagerContext &context, int clientFd) override;
 
