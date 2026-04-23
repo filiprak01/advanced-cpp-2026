@@ -13,14 +13,16 @@ target_include_directories(clientLib PUBLIC
 
 target_link_libraries(clientLib PUBLIC commonLib)
 
-add_executable(PWChatClient src/main.cpp ${CLIENT_HEADERS})
+if(BUILD_CLIENT_BACKEND)
+    add_executable(PWChatClient src/main.cpp ${CLIENT_HEADERS})
 
-target_include_directories(PWChatClient PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}/include
-)
+    target_include_directories(PWChatClient PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/include
+    )
 
-target_link_libraries(PWChatClient PRIVATE clientLib)
+    target_link_libraries(PWChatClient PRIVATE clientLib)
 
-set_target_properties(PWChatClient PROPERTIES
-    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/client
-)
+    set_target_properties(PWChatClient PROPERTIES
+        RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/client
+    )
+endif()

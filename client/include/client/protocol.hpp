@@ -66,9 +66,9 @@ namespace protocol
 
     // ---- State sync --------------------------------------------------------
 
-    inline json buildSynchronizeRequest(const std::string &userName)
+    inline json buildSynchronizeRequest(int clientFd)
     {
-        return {{"type", "synchronize"}, {"payload", {{"userName", userName}}}};
+        return {{"type", "synchronize"}, {"payload", {{"clientFd", clientFd}}}};
     }
 
 } // namespace protocol

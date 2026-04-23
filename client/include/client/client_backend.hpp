@@ -4,7 +4,7 @@
 #include <common/models/channel.hpp>
 #include <common/models/message.hpp>
 #include <common/utilities/config.hpp>
-
+#include <client/connection_state.hpp>
 #include <atomic>
 #include <deque>
 #include <functional>
@@ -53,6 +53,7 @@ public:
 
     /// @brief Returns @c true while the socket is open.
     bool isConnected() const;
+    connection::ConnectionState getConnectionState() const;
 
     // ---- Incoming message queue --------------------------------------------
 
@@ -108,9 +109,14 @@ public:
 
 private:
     void sendJson(const json &msg);
+    void sendPayload(const std::string &payload);
     void recvLoop();
     void setupDefaultHandlers();
     void pushStatus(const std::string &message);
+    void markDisconnected();
+    void markConnectionLost();
+    void markConnected();
+    void joinRecvThreadIfNeeded();
 
     ClientConfig config;
     SocketConnection conn;
@@ -128,4 +134,8 @@ private:
     std::unordered_map<int, Channel> channels;
     std::unordered_map<int, Message> messages;
     std::string currentUser;
+
+    // Connection state can be updated from the recv thread and the UI thread.
+    std::atomic<connection::ConnectionState> currentConnectionState{
+        connection::ConnectionState::Disconnected};
 };

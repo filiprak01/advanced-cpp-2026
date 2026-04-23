@@ -3,6 +3,17 @@
 
 #include <stdexcept>
 
+namespace
+{
+    std::string formatHostFromRawIp(int rawIp)
+    {
+        return std::to_string((rawIp >> 24) & 0xFF) + "." +
+               std::to_string((rawIp >> 16) & 0xFF) + "." +
+               std::to_string((rawIp >> 8) & 0xFF) + "." +
+               std::to_string(rawIp & 0xFF);
+    }
+} // namespace
+
 // ---- Construction / destruction ----------------------------------------
 
 ClientBackend::ClientBackend(ClientConfig cfg)
@@ -20,30 +31,45 @@ ClientBackend::~ClientBackend()
 
 void ClientBackend::connect()
 {
-    int rawIp = config.getServerIp();
-    std::string host =
-        std::to_string((rawIp >> 24) & 0xFF) + "." +
-        std::to_string((rawIp >> 16) & 0xFF) + "." +
-        std::to_string((rawIp >> 8) & 0xFF) + "." +
-        std::to_string(rawIp & 0xFF);
+    const connection::ConnectionState state = currentConnectionState.load();
+    if (state == connection::ConnectionState::Connecting ||
+        state == connection::ConnectionState::Connected)
+    {
+        return;
+    }
 
-    conn.connect(host, config.getServerPort());
-
+    joinRecvThreadIfNeeded();
+    currentConnectionState.store(connection::ConnectionState::Connecting);
     shouldStop = false;
-    recvThread = std::thread(&ClientBackend::recvLoop, this);
+
+    try
+    {
+        conn.connect(formatHostFromRawIp(config.getServerIp()), config.getServerPort());
+        currentConnectionState.store(connection::ConnectionState::Connected);
+        recvThread = std::thread(&ClientBackend::recvLoop, this);
+    }
+    catch (...)
+    {
+        markDisconnected();
+        throw;
+    }
 }
 
 void ClientBackend::disconnect()
 {
-    shouldStop = true;
-    conn.disconnect();
-    if (recvThread.joinable())
-        recvThread.join();
+    markDisconnected();
+    joinRecvThreadIfNeeded();
 }
 
 bool ClientBackend::isConnected() const
 {
-    return conn.isConnected();
+    return currentConnectionState.load() == connection::ConnectionState::Connected &&
+           conn.isConnected();
+}
+
+connection::ConnectionState ClientBackend::getConnectionState() const
+{
+    return currentConnectionState.load();
 }
 
 // ---- Queue drain -------------------------------------------------------
@@ -109,12 +135,12 @@ void ClientBackend::addUserToChannel(int channelId, const std::string &userName)
 
 void ClientBackend::synchronize()
 {
-    sendJson(protocol::buildSynchronizeRequest(currentUser));
+    sendJson(protocol::buildSynchronizeRequest(-1));
 }
 
 void ClientBackend::sendRaw(const std::string &rawJson)
 {
-    conn.send(rawJson);
+    sendPayload(rawJson);
 }
 
 std::vector<std::string> ClientBackend::drainStatus()
@@ -139,7 +165,27 @@ void ClientBackend::pushStatus(const std::string &message)
 
 void ClientBackend::sendJson(const json &msg)
 {
-    conn.send(msg.dump());
+    sendPayload(msg.dump());
+}
+
+void ClientBackend::sendPayload(const std::string &payload)
+{
+    if (!isConnected())
+    {
+        markDisconnected();
+        throw std::runtime_error("ClientBackend: cannot send while disconnected");
+    }
+
+    try
+    {
+        conn.send(payload);
+    }
+    catch (...)
+    {
+        markDisconnected();
+        joinRecvThreadIfNeeded();
+        throw;
+    }
 }
 
 void ClientBackend::recvLoop()
@@ -150,10 +196,14 @@ void ClientBackend::recvLoop()
         try
         {
             if (!conn.recv(raw))
+            {
+                markConnectionLost();
                 break;
+            }
         }
         catch (const std::exception &)
         {
+            markConnectionLost();
             break;
         }
 
@@ -168,8 +218,36 @@ void ClientBackend::recvLoop()
         }
         catch (const json::parse_error &)
         {
-            // Malformed frame — skip silently
+            markConnectionLost();
         }
+    }
+}
+
+void ClientBackend::markDisconnected()
+{
+    shouldStop = true;
+    currentConnectionState.store(connection::ConnectionState::Disconnected);
+    conn.disconnect();
+}
+
+void ClientBackend::markConnected()
+{
+    shouldStop = false;
+    currentConnectionState.store(connection::ConnectionState::Connected);
+}
+
+void ClientBackend::markConnectionLost()
+{
+    shouldStop = true;
+    currentConnectionState.store(connection::ConnectionState::ConnectionLost);
+    pushStatus("connection_lost");
+}
+
+void ClientBackend::joinRecvThreadIfNeeded()
+{
+    if (recvThread.joinable() && recvThread.get_id() != std::this_thread::get_id())
+    {
+        recvThread.join();
     }
 }
 
@@ -212,6 +290,14 @@ void ClientBackend::setupDefaultHandlers()
         messages.erase(msg["payload"].value("messageId", -1)); });
 
     responseDispatcher.registerHandler("channel_created", [this](const json &msg)
+                                       {
+        if (!msg.contains("payload"))
+            return;
+        Channel ch;
+        ch.fromJson(msg["payload"]);
+        channels[ch.getChannelId()] = std::move(ch); });
+
+    responseDispatcher.registerHandler("user_joined_channel", [this](const json &msg)
                                        {
         if (!msg.contains("payload"))
             return;
