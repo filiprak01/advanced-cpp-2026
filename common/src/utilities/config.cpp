@@ -1,6 +1,20 @@
 #include <common/utilities/config.hpp>
+#include <filesystem>
 #include <fstream>
 #include <sstream>
+
+namespace
+{
+    void createParentDirectory(const std::string &filename)
+    {
+        const std::filesystem::path path(filename);
+        const auto parent = path.parent_path();
+        if (!parent.empty())
+        {
+            std::filesystem::create_directories(parent);
+        }
+    }
+} // namespace
 
 json ServerConfig::toJson() const
 {
@@ -23,6 +37,10 @@ json ServerConfig::toJson() const
     j["eventProcessingThreadPoolSize"] = eventProcessingThreadPoolSize;
     j["logLevel"] = logLevel;
     j["enableConsoleLogging"] = enableConsoleLogging;
+    j["userRepoFile"] = userRepoFile;
+    j["sessionRepoFile"] = sessionRepoFile;
+    j["channelRepoFile"] = channelRepoFile;
+    j["messageRepoFile"] = messageRepoFile;
     return j;
 }
 
@@ -46,6 +64,10 @@ void ServerConfig::fromJson(const json &j)
     eventProcessingThreadPoolSize = j.value("eventProcessingThreadPoolSize", 4);
     logLevel = j.value("logLevel", 1);
     enableConsoleLogging = j.value("enableConsoleLogging", true);
+    userRepoFile = j.value("userRepoFile", "data/users.json");
+    sessionRepoFile = j.value("sessionRepoFile", "data/sessions.json");
+    channelRepoFile = j.value("channelRepoFile", "data/channels.json");
+    messageRepoFile = j.value("messageRepoFile", "data/messages.json");
 }
 
 json ClientConfig::toJson() const
@@ -78,7 +100,9 @@ ServerConfig ServerConfig::readFromFile(const std::string &filename)
     std::ifstream file(filename);
     if (!file.is_open())
     {
-        return ServerConfig(); // Return default config if file cannot be opened
+        ServerConfig config;
+        config.exportToFile(filename);
+        return config;
     }
     std::stringstream buffer;
     buffer << file.rdbuf();
@@ -88,6 +112,7 @@ ServerConfig ServerConfig::readFromFile(const std::string &filename)
 }
 bool ServerConfig::exportToFile(const std::string &filename)
 {
+    createParentDirectory(filename);
     std::ofstream file(filename);
     if (!file.is_open())
     {
@@ -102,7 +127,9 @@ ClientConfig ClientConfig::readFromFile(const std::string &filename)
     std::ifstream file(filename);
     if (!file.is_open())
     {
-        return ClientConfig(); // Return default config if file cannot be opened
+        ClientConfig config;
+        config.exportToFile(filename);
+        return config;
     }
     std::stringstream buffer;
     buffer << file.rdbuf();
@@ -112,6 +139,7 @@ ClientConfig ClientConfig::readFromFile(const std::string &filename)
 }
 bool ClientConfig::exportToFile(const std::string &filename)
 {
+    createParentDirectory(filename);
     std::ofstream file(filename);
     if (!file.is_open())
     {

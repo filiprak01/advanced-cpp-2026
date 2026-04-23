@@ -47,3 +47,26 @@ std::vector<User> UserRepository::getAllUsers() const
     }
     return result;
 }
+
+json UserRepository::toJson() const
+{
+    json result = json::array();
+    std::shared_lock<std::shared_mutex> lock(mutex);
+    for (const auto &entry : users)
+    {
+        result.push_back(entry.second.toJson());
+    }
+    return result;
+}
+
+void UserRepository::fromJson(const json &j)
+{
+    std::unique_lock<std::shared_mutex> lock(mutex);
+    users.clear();
+    for (const auto &item : j)
+    {
+        User user;
+        user.fromJson(item);
+        users[user.getUsername()] = user;
+    }
+}

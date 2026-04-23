@@ -1,184 +1,123 @@
-# PWChat
+# PWChat Backend
 
-## Quick Links
+Wersja: `1.0.0 MVP`
 
-- Implemented scaffold overview: [OVERVIEW.md](OVERVIEW.md)
-- Deadline-first guide: [DEADLINE_GUIDE.md](DEADLINE_GUIDE.md)
-- Optional stretch goals: [EXTENSION.md](EXTENSION.md)
-- Detailed backend plan: [BACKEND_IMPLEMENTATION_GUIDE.md](BACKEND_IMPLEMENTATION_GUIDE.md)
-- Detailed client-backend plan: [ClientImplementation.md](ClientImplementation.md)
+Backend projektu PWChat zawiera serwer TCP, wspólne modele domenowe, repozytoria danych oraz bibliotekę klienta używaną przez aplikację Qt z repozytorium `advanced-cpp-2026-ui`.
 
-## Test Policy
+## Zakres MVP
 
-Tests are optional during normal implementation.
+- Rejestracja i logowanie użytkowników.
+- Sesje oparte o mapowanie `fd -> username`.
+- Kanały otwarte i prywatne w modelu domenowym.
+- Tworzenie i usuwanie kanałów.
+- Dodawanie użytkowników do kanałów.
+- Wysyłanie, edycja i usuwanie wiadomości po stronie backendu.
+- Broadcast wiadomości do użytkowników należących do kanału.
+- Synchronizacja danych po zalogowaniu.
+- Zapis i odczyt repozytoriów z plików JSON.
+- Konfiguracja serwera przez `config/server.json`.
+- Dokumentacja Doxygen i ręczne testy.
 
-- Default builds do not compile tests.
-- Enable tests only when you want them:
-  `cmake --preset debug-tests && cmake --build --preset debug-tests`
-- Fast local verification:
-  `bash scripts/test-fast.sh`
+## Struktura
 
-## Documentation
+- `common/` - modele, repozytoria wspólne, konfiguracja i serializacja JSON.
+- `server/` - serwer TCP, eventy, managerowie, sesje i autoryzacja.
+- `client/` - backend klienta: socket, protokół JSON i dispatcher odpowiedzi.
+- `tests/` - testy jednostkowe i integracyjne uruchamiane ręcznie.
+- `config/` - konfiguracja klienta i serwera.
+- `data/` - pliki JSON używane przez persistence MVP.
+- `scripts/` - skrypty pomocnicze, m.in. generowanie dokumentacji.
 
-- Generate Doxygen docs:
-  `./scripts/gen-docs.sh`
-- Main documentation page:
-  [OVERVIEW.md](OVERVIEW.md)
+## Wymagania
 
-## Struktura katalogów
+- Linux albo WSL.
+- CMake `3.22+`.
+- Kompilator C++17, np. `g++`.
+- `nlohmann-json3-dev`.
+- `libssl-dev`.
+- `libgtest-dev` tylko do testów.
+- `doxygen` i `graphviz` tylko do dokumentacji.
 
-```
-.
-├── CMakeLists.txt              # Główny plik konfiguracyjny CMake
-├── Doxyfile                    # Konfiguracja generowania dokumentacji (Doxygen)
-├── format.sh                   # Skrypt do formatowania kodu (clang-format)
-├── tidy.sh                     # Skrypt do analizy statycznej kodu (clang-tidy)
-├── README.md                   # Ten plik
-│
-├── common/                     # Biblioteka wspólna (modele i narzędzia)
-│   ├── CMakeLists.txt          # Konfiguracja CMake dla commonLib
-│   ├── include/
-│   │   └── common/
-│   │       ├── models/         # Klasy modeli danych
-│   │       │   ├── channel.hpp
-│   │       │   ├── connection.hpp
-│   │       │   ├── message.hpp
-│   │       │   ├── session.hpp
-│   │       │   └── user.hpp
-│   │       └── utilities/      # Klasy narzędziowe
-│   │           ├── config.hpp
-│   │           └── serializer.hpp
-│   └── src/                    # Implementacje metod z plików nagłówkowych
-│       ├── channel.cpp
-│       ├── config.cpp
-│       ├── connection.cpp
-│       ├── message.cpp
-│       ├── serializer.cpp
-│       ├── session.cpp
-│       └── user.cpp
-│
-├── server/                     # Biblioteka serwera
-│   ├── CMakeLists.txt          # Konfiguracja CMake dla serverLib
-│   ├── include/
-│   │   └── server/
-│   │       ├── auth/           # Autoryzacja i rejestracja
-│   │       │   ├── auth_manager.hpp
-│   │       │   ├── password_hasher.hpp
-│   │       │   └── registration_manager.hpp
-│   │       ├── core/           # Logika biznesowa serwera
-│   │       │   ├── channel_manager.hpp
-│   │       │   ├── connection_manager.hpp
-│   │       │   ├── message_manager.hpp
-│   │       │   └── session_manager.hpp
-│   │       └── repos/          # Repozytoria danych (in-memory)
-│   │           ├── channel_repo.hpp
-│   │           ├── message_repo.hpp
-│   │           ├── session_repo.hpp
-│   │           └── user_repo.hpp
-│   └── src/                    # Implementacje metod z plików nagłówkowych
-│       ├── auth_manager.cpp
-│       ├── channel_manager.cpp
-│       ├── channel_repo.cpp
-│       ├── connection_manager.cpp
-│       ├── message_manager.cpp
-│       ├── message_repo.cpp
-│       ├── password_hasher.cpp
-│       ├── registration_manager.cpp
-│       ├── session_manager.cpp
-│       ├── session_repo.cpp
-│       └── user_repo.cpp
-│
-├── client/                     # Klient (do zaimplementowania)
-│   ├── include/
-│   │   └── client/
-│   └── src/
-│
-├── src/                        # Punkt wejścia aplikacji
-│   └── main.cpp
-│
-├── tests/                      # Testy jednostkowe (GTest)
-│   ├── CMakeLists.txt
-│   ├── models/                 # Testy modeli danych
-│   │   ├── user_test.cpp
-│   │   ├── message_test.cpp
-│   │   ├── channel_test.cpp
-│   │   ├── session_test.cpp
-│   │   └── connection_test.cpp
-│   ├── repos/                  # Testy repozytoriów
-│   │   ├── user_repo_test.cpp
-│   │   ├── channel_repo_test.cpp
-│   │   ├── message_repo_test.cpp
-│   │   └── session_repo_test.cpp
-│   └── managers/               # Testy managerów
-│       ├── auth_manager_test.cpp
-│       ├── registration_manager_test.cpp
-│       ├── channel_manager_test.cpp
-│       ├── message_manager_test.cpp
-│       ├── session_manager_test.cpp
-│       └── connection_manager_test.cpp
-│
-├── build/                      # Katalog z plikami kompilacji (generowany)
-│
-└── vcpkg/                      # Katalog na menedżer pakietów vcpkg (opcjonalny)
-```
-
-## Wymagania systemowe
-
-- **Kompilator**: g++ (GCC) z obsługą C++17
-- **CMake**: wersja 3.22 lub nowsza
-- **Biblioteki**:
-  - `nlohmann-json3-dev` — serializacja JSON
-  - `libssl-dev` — hashowanie haseł (OpenSSL)
-  - `libgtest-dev` — testy jednostkowe (Google Test)
-
-### Instalacja zależności (Ubuntu/Debian)
+Przykład instalacji na Ubuntu/WSL:
 
 ```bash
 sudo apt update
-sudo apt install g++ cmake nlohmann-json3-dev libssl-dev libgtest-dev
+sudo apt install g++ cmake nlohmann-json3-dev libssl-dev libgtest-dev doxygen graphviz
 ```
 
-## Kompilacja projektu
+## Budowanie
 
-1. Utwórz katalog `build` i wygeneruj pliki kompilacji:
+Serwer:
 
 ```bash
-mkdir -p build
-cd build
-cmake ..
+cmake --preset server-only
+cmake --build --preset server-only
 ```
 
-2. Skompiluj projekt:
+Backend klienta:
 
 ```bash
-make -j$(nproc)
+cmake --preset client-only
+cmake --build --preset client-only
 ```
 
-Skompilowany plik wykonywalny `PWChat` znajdziesz w katalogu `build/`.
-
-## Uruchomienie programu
+Pełny build developerski:
 
 ```bash
-cd build
-./PWChat
+cmake --preset debug
+cmake --build --preset debug
 ```
 
-## Uruchomienie testów
+## Uruchomienie serwera
 
 ```bash
-cd build
-ctest --output-on-failure
+./build/presets/server-only/server/PWChat
 ```
 
-lub bezpośrednio:
+Domyślna konfiguracja serwera jest w `config/server.json`. Aktualny port MVP to `8091`.
+
+## Testy
+
+Testy nie są wymagane przy każdym buildzie. Uruchamiaj je ręcznie wtedy, gdy chcesz sprawdzić implementację:
 
 ```bash
-cd build
-./tests/runTests
+cmake --preset debug-tests
+cmake --build --preset debug-tests
+ctest --test-dir build/presets/debug-tests --output-on-failure
 ```
 
-## Narzędzia pomocnicze
+Szybki skrypt pomocniczy:
 
-- **Formatowanie kodu**: `./format.sh` — uruchamia `clang-format` na plikach źródłowych.
-- **Analiza statyczna**: `./tidy.sh` — uruchamia `clang-tidy` na plikach źródłowych.
-- **Dokumentacja**: `doxygen Doxyfile` — generuje dokumentację HTML na podstawie komentarzy w kodzie.
+```bash
+./scripts/test-fast.sh
+```
+
+## Dokumentacja
+
+```bash
+./scripts/gen-docs.sh
+```
+
+Główne pliki opisowe:
+
+- `OVERVIEW.md` - opis zaimplementowanego szkieletu.
+- `DEADLINE_GUIDE.md` - plan pracy i zakres MVP.
+- `EXTENSION.md` - pomysły na rozszerzenia po MVP.
+- `../ALL_SUMMARY.md` - zbiorcze przygotowanie do obrony dla obu repozytoriów.
+
+## Ograniczenia MVP
+
+- Backend jest przygotowany pod Linux/WSL i używa POSIX sockets.
+- Natywne Windows sockets są rozszerzeniem po MVP.
+- Persistence jest plikowe, bez osobnej bazy danych.
+- Brakuje pełnej warstwy uprawnień administratora.
+- Część funkcji backendu nie ma jeszcze pełnej obsługi w UI.
+
+## Najważniejsze punkty do obrony
+
+- Serwer używa `poll`, żeby obsługiwać wiele połączeń TCP.
+- Wiadomości są ramkowane długością i przesyłane jako JSON.
+- `EventFactory` mapuje typ requestu na konkretną klasę eventu.
+- Managerowie przechowują reguły domenowe, a eventy są adapterami protokołu.
+- `DomainResult` ujednolica sukcesy i błędy.
+- Sesja jest powiązana z deskryptorem połączenia, a nie wyłącznie z nazwą użytkownika.

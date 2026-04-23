@@ -19,16 +19,16 @@
 using json = nlohmann::json;
 
 /**
- * @brief Core client component that owns the socket, recv thread, and local caches.
+ * @brief Backend klienta odpowiedzialny za transport, odbior i lokalny cache.
  *
- * The UI layer calls the high-level API (login, sendMessage, …) and polls
- * drainQueue() on each render tick to retrieve any server-pushed updates.
+ * Klasa udostepnia metody uzywane przez UI, np. logowanie, tworzenie kanalow
+ * i wysylanie wiadomosci. Odpowiedzi serwera trafiaja do kolejki, ktora
+ * warstwa UI okresowo oproznia przez drainQueue().
  *
- * Thread safety
- * -------------
- * - incomingQueue is protected by queueMutex (recv thread writes, UI reads).
- * - Local caches (channels, messages) are written only by the UI thread after
- *   it pops items from incomingQueue, so no second lock is required.
+ * Watek odbiorczy zapisuje nowe odpowiedzi pod ochrona queueMutex. Cache
+ * kanalow i wiadomosci jest aktualizowany dopiero po odebraniu komunikatu
+ * przez czesc kliencka, dzieki czemu logika UI nie musi bezposrednio operowac
+ * na gniezdzie sieciowym.
  */
 class ClientBackend
 {
@@ -36,75 +36,82 @@ public:
     explicit ClientBackend(ClientConfig config);
     ~ClientBackend();
 
-    // Non-copyable
+    /// Obiekt zarzadza gniazdem i watkiem odbiorczym, dlatego nie jest kopiowalny.
     ClientBackend(const ClientBackend &) = delete;
     ClientBackend &operator=(const ClientBackend &) = delete;
 
-    // ---- Lifecycle ---------------------------------------------------------
-
     /**
-     * @brief Connects to the server specified in the config and starts the recv thread.
-     * @throws std::runtime_error on connection failure.
+     * @brief Laczy z serwerem wskazanym w konfiguracji i uruchamia watek odbiorczy.
+     * @throws std::runtime_error Gdy nie uda sie zestawic polaczenia.
      */
     void connect();
 
-    /// @brief Disconnects and stops the recv thread.
+    /// @brief Rozlacza klienta i zatrzymuje watek odbiorczy.
     void disconnect();
 
-    /// @brief Returns @c true while the socket is open.
+    /// @brief Zwraca @c true, jesli gniazdo jest aktywne.
     bool isConnected() const;
+
+    /// @brief Zwraca aktualny stan polaczenia klienta.
     connection::ConnectionState getConnectionState() const;
 
-    // ---- Incoming message queue --------------------------------------------
-
     /**
-     * @brief Moves all pending server messages out of the queue.
+     * @brief Zwraca i usuwa z kolejki wszystkie odebrane komunikaty serwera.
      *
-     * Call this from the UI thread on each render tick.
-     * Each returned JSON object is a fully parsed server response.
+     * Metoda jest wywolywana przez UI cyklicznie, aby przetworzyc odpowiedzi
+     * oraz zdarzenia wyslane przez serwer.
      */
     std::vector<json> drainQueue();
 
-    // ---- High-level API (called by the UI) ---------------------------------
-
+    /// @brief Wysyla zadanie logowania.
     void login(const std::string &username, const std::string &password);
+
+    /// @brief Wysyla zadanie rejestracji nowego uzytkownika.
     void registerUser(const std::string &username, const std::string &password);
 
+    /// @brief Wysyla wiadomosc do kanalu.
     void sendMessage(int channelId, const std::string &content);
+
+    /// @brief Edytuje istniejaca wiadomosc.
     void editMessage(int messageId, const std::string &newContent);
+
+    /// @brief Usuwa wiadomosc z kanalu.
     void removeMessage(int messageId, int channelId);
 
+    /// @brief Tworzy kanal publiczny albo prywatny.
     void createChannel(const std::string &name, const std::vector<std::string> &members, bool isPrivate);
+
+    /// @brief Zmienia nazwe kanalu.
     void editChannel(int channelId, const std::string &newName);
+
+    /// @brief Usuwa kanal.
     void removeChannel(int channelId);
+
+    /// @brief Dodaje uzytkownika do kanalu.
     void addUserToChannel(int channelId, const std::string &userName);
 
-    /// @brief Requests full state (channels + messages) from the server.
+    /// @brief Pobiera pelny stan kanalow i wiadomosci z serwera.
     void synchronize();
 
     /**
-     * @brief Sends a raw JSON string directly to the server.
-     * @param rawJson A complete JSON string to transmit.
+     * @brief Wysyla gotowy tekst JSON bez dodatkowego mapowania.
+     * @param rawJson Kompletny komunikat JSON do wyslania.
      */
     void sendRaw(const std::string &rawJson);
 
-    /**
-     * @brief Drains status messages created by server error responses.
-     */
+    /// @brief Zwraca komunikaty statusu utworzone na podstawie odpowiedzi serwera.
     std::vector<std::string> drainStatus();
 
-    // ---- Local state (read by the UI) --------------------------------------
-
+    /// @brief Zwraca lokalny cache kanalow.
     const std::unordered_map<int, Channel> &getChannels() const { return channels; }
+
+    /// @brief Zwraca lokalny cache wiadomosci.
     const std::unordered_map<int, Message> &getMessages() const { return messages; }
+
+    /// @brief Zwraca nazwe aktualnie zalogowanego uzytkownika.
     const std::string &getCurrentUser() const { return currentUser; }
 
-    // ---- Response handler registration ------------------------------------
-
-    /**
-     * @brief Provides access to the dispatcher so the UI can register
-     *        presentation-layer handlers (e.g. repaint callbacks).
-     */
+    /// @brief Udostepnia dispatcher odpowiedzi serwera.
     ResponseDispatcher &dispatcher() { return responseDispatcher; }
 
 private:
@@ -130,12 +137,12 @@ private:
     std::thread recvThread;
     std::atomic<bool> shouldStop{false};
 
-    // Local caches — written only from the UI thread
+    // Cache odczytywany przez UI po przetworzeniu odpowiedzi z kolejki.
     std::unordered_map<int, Channel> channels;
     std::unordered_map<int, Message> messages;
     std::string currentUser;
 
-    // Connection state can be updated from the recv thread and the UI thread.
+    // Stan polaczenia moze zmienic watek odbiorczy albo watek UI.
     std::atomic<connection::ConnectionState> currentConnectionState{
         connection::ConnectionState::Disconnected};
 };

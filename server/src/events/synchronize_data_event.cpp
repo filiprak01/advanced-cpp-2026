@@ -32,9 +32,15 @@ void SynchronizeDataEvent::perform(ManagerContext &context, int clientFd)
         }
     }
 
+    json usersJson = json::array();
+    for (const auto &registeredUsername : context.registrationManager.getRegisteredUsernames())
+    {
+        usersJson.push_back(registeredUsername);
+    }
+
     context.connectionManager.sendSuccessMessage(
         clientFd,
         "sync_response",
         DomainResult::success(success::Code::synchronized),
-        {{"channels", channelsJson}, {"messages", messagesJson}});
+        {{"channels", channelsJson}, {"messages", messagesJson}, {"users", usersJson}});
 }

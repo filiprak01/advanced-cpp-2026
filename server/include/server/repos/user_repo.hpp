@@ -1,10 +1,13 @@
 #pragma once
 #include <string>
 #include <common/models/user.hpp>
+#include <nlohmann/json.hpp>
 #include <unordered_map>
 #include <shared_mutex>
 #include <mutex>
 #include <vector>
+
+using json = nlohmann::json;
 
 /**
  * @brief Repozytorium użytkowników serwera.
@@ -50,6 +53,12 @@ public:
      * @return Wektor wszystkich użytkowników.
      */
     std::vector<User> getAllUsers() const;
+
+    /// @brief Serializuje repozytorium użytkowników do JSON.
+    json toJson() const;
+
+    /// @brief Odtwarza repozytorium użytkowników z JSON.
+    void fromJson(const json &j);
 
 private:
     mutable std::shared_mutex mutex;             ///< Blokada synchronizująca dostęp wielowątkowy.

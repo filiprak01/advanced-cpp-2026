@@ -42,3 +42,24 @@
 
 # Ignore build directory
 build/
+
+# CMake files accidentally generated outside build/
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+CTestTestfile.cmake
+compile_commands.json
+compile_flags.txt
+
+# Generated documentation
+docs/html/
+docs/latex/
+docs/*.log
+docs/*.tag
+
+# Local editor/tooling files
+.vscode/
+.idea/
+.codex
+*.user

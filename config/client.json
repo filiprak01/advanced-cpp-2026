@@ -1,6 +1,6 @@
 {
     "serverIp": 2130706433,
-    "serverPort": 8090,
+    "serverPort": 8091,
     "autoReconnect": true,
     "reconnectIntervalMs": 3000,
     "maxMessageLength": 1000,

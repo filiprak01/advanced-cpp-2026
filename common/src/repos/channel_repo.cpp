@@ -38,3 +38,37 @@ bool ChannelRepository::updateChannel(const Channel &channel)
     channels[channel.getChannelId()] = channel;
     return true;
 }
+
+std::vector<Channel> ChannelRepository::getAllChannels() const
+{
+    std::vector<Channel> result;
+    std::shared_lock<std::shared_mutex> lock(mutex);
+    for (const auto &entry : channels)
+    {
+        result.push_back(entry.second);
+    }
+    return result;
+}
+
+json ChannelRepository::toJson() const
+{
+    json result = json::array();
+    std::shared_lock<std::shared_mutex> lock(mutex);
+    for (const auto &entry : channels)
+    {
+        result.push_back(entry.second.toJson());
+    }
+    return result;
+}
+
+void ChannelRepository::fromJson(const json &j)
+{
+    std::unique_lock<std::shared_mutex> lock(mutex);
+    channels.clear();
+    for (const auto &item : j)
+    {
+        Channel channel;
+        channel.fromJson(item);
+        channels[channel.getChannelId()] = channel;
+    }
+}

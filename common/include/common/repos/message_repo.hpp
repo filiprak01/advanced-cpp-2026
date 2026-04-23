@@ -1,8 +1,12 @@
 #pragma once
 #include <common/models/message.hpp>
+#include <nlohmann/json.hpp>
 #include <unordered_map>
 #include <shared_mutex>
 #include <mutex>
+#include <vector>
+
+using json = nlohmann::json;
 
 /**
  * @brief Repozytorium wiadomości.
@@ -49,6 +53,15 @@ public:
      * @return @c true jeśli aktualizacja się powiódła.
      */
     bool updateMessage(const Message &message);
+
+    /// @brief Zwraca kopię wszystkich wiadomości.
+    std::vector<Message> getAllMessages() const;
+
+    /// @brief Serializuje repozytorium wiadomości do JSON.
+    json toJson() const;
+
+    /// @brief Odtwarza repozytorium wiadomości z JSON.
+    void fromJson(const json &j);
 
 private:
     mutable std::shared_mutex mutex;           ///< Blokada synchronizująca dostęp wielowątkowy.

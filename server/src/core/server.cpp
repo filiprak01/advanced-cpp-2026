@@ -1,9 +1,12 @@
 #include <server/server.hpp>
+#include <arpa/inet.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <unistd.h>
 #include <poll.h>
 #include <cstring>
+#include <filesystem>
+#include <fstream>
 #include <iostream>
 #include <stdexcept>
 #include <vector>
@@ -11,7 +14,54 @@
 #include <common/const/event_messages.hpp>
 
 using json = nlohmann::json;
-int Server::createAndBindSocket(int port)
+
+namespace
+{
+    void createParentDirectory(const std::string &filename)
+    {
+        const std::filesystem::path path(filename);
+        const auto parent = path.parent_path();
+        if (!parent.empty())
+        {
+            std::filesystem::create_directories(parent);
+        }
+    }
+
+    json readArrayFile(const std::string &filename)
+    {
+        createParentDirectory(filename);
+        if (!std::filesystem::exists(filename))
+        {
+            std::ofstream created(filename);
+            created << "[]\n";
+            return json::array();
+        }
+
+        std::ifstream file(filename);
+        if (!file.is_open() || file.peek() == std::ifstream::traits_type::eof())
+        {
+            return json::array();
+        }
+
+        json data = json::parse(file);
+        return data.is_array() ? data : json::array();
+    }
+
+    bool writeJsonFile(const std::string &filename, const json &data)
+    {
+        createParentDirectory(filename);
+        std::ofstream file(filename);
+        if (!file.is_open())
+        {
+            return false;
+        }
+
+        file << data.dump(4) << '\n';
+        return true;
+    }
+} // namespace
+
+int Server::createAndBindSocket(const std::string &host, int port)
 {
     int fd = socket(AF_INET, SOCK_STREAM, 0);
     if (fd < 0)
@@ -22,7 +72,15 @@ int Server::createAndBindSocket(int port)
 
     sockaddr_in addr{};
     addr.sin_family = AF_INET;
-    addr.sin_addr.s_addr = INADDR_ANY;
+    if (host == "0.0.0.0")
+    {
+        addr.sin_addr.s_addr = INADDR_ANY;
+    }
+    else if (inet_pton(AF_INET, host.c_str(), &addr.sin_addr) != 1)
+    {
+        close(fd);
+        throw std::runtime_error("Invalid server host " + host);
+    }
     addr.sin_port = htons(static_cast<uint16_t>(port));
 
     if (bind(fd, reinterpret_cast<sockaddr *>(&addr), sizeof(addr)) < 0)
@@ -37,13 +95,14 @@ int Server::createAndBindSocket(int port)
         throw std::runtime_error("Failed to listen on socket");
     }
 
-    std::cout << "Server listening on port " << port << std::endl;
+    std::cout << "Server listening on " << host << ":" << port << std::endl;
     return fd;
 }
 
 Server::Server(int port)
-    : config(ServerConfig()),
-      server_fd(createAndBindSocket(port)),
+    : server_fd(createAndBindSocket("0.0.0.0", port)),
+      config(ServerConfig()),
+      persistenceEnabled(false),
       userRepo(),
       sessionRepo(),
       channelRepo(),
@@ -60,8 +119,9 @@ Server::Server(int port)
 }
 
 Server::Server(const ServerConfig &cfg)
-    : config(cfg),
-      server_fd(createAndBindSocket(cfg.getPort())),
+    : server_fd(createAndBindSocket(cfg.getHost(), cfg.getPort())),
+      config(cfg),
+      persistenceEnabled(true),
       userRepo(),
       sessionRepo(),
       channelRepo(),
@@ -75,13 +135,23 @@ Server::Server(const ServerConfig &cfg)
       channelManager(channelRepo, userRepo),
       messageManager(connectionManager, messageRepo, userRepo, channelRepo, 1, {}),
       authManager(userRepo, passwordHasher),
-      registrationManager(userRepo, passwordHasher),
+      registrationManager(userRepo, passwordHasher,
+                          cfg.getMinPasswordLength(),
+                          cfg.getMaxPasswordLength(),
+                          cfg.getMinUsernameLength(),
+                          cfg.getMaxUsernameLength()),
       running(false)
 {
+    loadRepositories();
 }
 
 Server::~Server()
 {
+    if (persistenceEnabled)
+    {
+        saveRepositories();
+    }
+
     if (server_fd >= 0)
         close(server_fd);
 }
@@ -107,6 +177,10 @@ void Server::run()
         int ret = poll(fds.data(), static_cast<nfds_t>(fds.size()), 1000);
         if (ret < 0)
         {
+            if (errno == EINTR)
+            {
+                continue;
+            }
             std::cerr << "poll error: " << strerror(errno) << std::endl;
             break;
         }
@@ -121,9 +195,6 @@ void Server::run()
                 int client_fd = connectionManager.acceptConnection();
                 if (client_fd >= 0)
                 {
-                    const std::string banner =
-                        "PWChat server ready. fd=" + std::to_string(client_fd) + "\n";
-                    send(client_fd, banner.c_str(), banner.size(), 0);
                     fds.push_back({client_fd, POLLIN, 0});
                 }
             }
@@ -133,8 +204,7 @@ void Server::run()
                 try
                 {
                     json received = connectionManager.receiveMessage(fds[i].fd);
-                    // Empty string returned by receiveMessage means client disconnected
-                    if (received.is_string() && received.get<std::string>().empty())
+                    if (received.is_null() || (received.is_string() && received.get<std::string>().empty()))
                     {
                         clientDisconnected = true;
                     }
@@ -165,10 +235,44 @@ void Server::run()
 
                 if (clientDisconnected)
                 {
+                    connectionManager.closeConnection(fds[i].fd);
                     fds.erase(fds.begin() + static_cast<std::ptrdiff_t>(i));
                     --i; // adjust index after erase
                 }
             }
         }
+    }
+}
+
+void Server::loadRepositories()
+{
+    try
+    {
+        userRepo.fromJson(readArrayFile(config.getUserRepoFile()));
+        sessionRepo.fromJson(readArrayFile(config.getSessionRepoFile()));
+        channelRepo.fromJson(readArrayFile(config.getChannelRepoFile()));
+        messageRepo.fromJson(readArrayFile(config.getMessageRepoFile()));
+
+        sessionManager.rebuildIndexFromRepository();
+        channelManager.rebuildIndexFromRepository();
+        messageManager.rebuildIndexFromRepositories();
+    }
+    catch (const std::exception &e)
+    {
+        std::cerr << "Failed to load repository files: " << e.what() << std::endl;
+    }
+}
+
+void Server::saveRepositories() const
+{
+    bool ok = true;
+    ok = writeJsonFile(config.getUserRepoFile(), userRepo.toJson()) && ok;
+    ok = writeJsonFile(config.getSessionRepoFile(), sessionRepo.toJson()) && ok;
+    ok = writeJsonFile(config.getChannelRepoFile(), channelRepo.toJson()) && ok;
+    ok = writeJsonFile(config.getMessageRepoFile(), messageRepo.toJson()) && ok;
+
+    if (!ok)
+    {
+        std::cerr << "Failed to save one or more repository files." << std::endl;
     }
 }

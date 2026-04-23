@@ -8,7 +8,7 @@
 #include <thread>
 
 /**
- * CLI smoke test (Step 4 of the MVP plan).
+ * CLI smoke test for the client backend.
  *
  * Reads config/client.json, connects to the server, logs in with the
  * credentials supplied as command-line arguments, sends one hard-coded

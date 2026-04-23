@@ -20,7 +20,7 @@ public:
     /**
      * @brief Tworzy sesję z podanymi parametrami.
      * @param sessionId   Unikalny identyfikator sesji.
-     * @param userId      Identyfikator użytkownika przypisanego do sesji.
+     * @param userName    Nazwa użytkownika przypisanego do sesji.
      * @param lastActive  Czas ostatniej aktywności sesji.
      */
     Session(const int &sessionId, const std::string &userName, const std::chrono::time_point<std::chrono::steady_clock> &lastActive) : sessionId(sessionId), userName(userName), lastActive(lastActive) {}

@@ -14,6 +14,7 @@ public:
     /**
      * @brief Tworzy menedżer sesji.
      * @param sessionRepository Repozytorium sesji.
+     * @param connectionManager Menedżer mapujący fd na nazwy użytkowników.
      * @param sessionTimeout    Czas wygasania sesji.
      * @param userSessions      Początkowa mapa: userId → sessionId.
      * @param nextSessionId     Początkowa wartość licznika sesji.
@@ -25,28 +26,28 @@ public:
 
     /**
      * @brief Sprawdza, czy użytkownik ma aktywną sesję (jest zalogowany).
-     * @param userName Nazwa użytkownika.
+     * @param fd Deskryptor klienta.
      * @return @c true jeśli sesja istnieje.
      */
     bool hasSession(int fd);
 
     /**
      * @brief Tworzy nową sesję dla użytkownika.
-     * @param userId Identyfikator użytkownika.
+     * @param fd Deskryptor klienta.
      * @return @c true jeśli tworzenie się powiódło.
      */
     bool createSession(int fd);
 
     /**
      * @brief Usuwa sesję użytkownika.
-     * @param userId Identyfikator użytkownika.
+     * @param userName Nazwa użytkownika.
      * @return @c true jeśli usunięcie się powiódło.
      */
     bool removeUserSession(const std::string &userName);
 
     /**
      * @brief Aktualizuje czas ostatniej aktywności sesji użytkownika.
-     * @param userId Identyfikator użytkownika.
+     * @param fd Deskryptor klienta.
      * @return @c true jeśli aktualizacja się powiódła.
      */
     bool updateUserSession(int fd);
@@ -57,6 +58,8 @@ public:
      * @return @c true jeśli sesja jest ważna.
      */
     bool isSessionValid(const int &sessionId);
+
+    void rebuildIndexFromRepository();
 
 private:
     SessionRepository &sessionRepository; ///< Repozytorium sesji.

@@ -2,6 +2,7 @@
 #include <server/auth/password_hasher.hpp>
 #include <server/core/domain_result.hpp>
 #include <server/repos/user_repo.hpp>
+#include <vector>
 
 /**
  * @brief Menedżer rejestracji nowych użytkowników.
@@ -32,6 +33,12 @@ public:
      * @return @c true jeśli rejestracja się powiódła.
      */
     DomainResult registerUser(const std::string &username, const std::string &password);
+
+    /**
+     * @brief Zwraca nazwy wszystkich zarejestrowanych użytkowników.
+     * @return Lista nazw użytkowników bez danych uwierzytelniających.
+     */
+    std::vector<std::string> getRegisteredUsernames() const;
 
 private:
     int passwordMinLength;          ///< Minimalna długość hasła.

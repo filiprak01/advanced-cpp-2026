@@ -4,7 +4,7 @@
 using json = nlohmann::json;
 
 /**
- * @brief Narz\u0119dzie do serializacji i deserializacji konfiguracji.
+ * @brief Narzedzie do serializacji i deserializacji konfiguracji.
  */
 class Serializer
 {
@@ -31,31 +31,19 @@ public:
         j["eventProcessingThreadPoolSize"] = cfg.getEventProcessingThreadPoolSize();
         j["logLevel"] = cfg.getLogLevel();
         j["enableConsoleLogging"] = cfg.isConsoleLoggingEnabled();
+        j["userRepoFile"] = cfg.getUserRepoFile();
+        j["sessionRepoFile"] = cfg.getSessionRepoFile();
+        j["channelRepoFile"] = cfg.getChannelRepoFile();
+        j["messageRepoFile"] = cfg.getMessageRepoFile();
         return j;
     }
 
     /// @brief Deserializuje JSON do ServerConfig.
     ServerConfig deserializeServerConfig(const json &j) const
     {
-        return ServerConfig(
-            j.value("host", "0.0.0.0"),
-            j.value("port", 8090),
-            j.value("maxConnections", 100),
-            j.value("sessionTimeout", 1800),
-            j.value("pingInterval", 60),
-            j.value("maxInactiveTime", 300),
-            j.value("minUsernameLength", 3),
-            j.value("maxUsernameLength", 20),
-            j.value("minPasswordLength", 6),
-            j.value("maxPasswordLength", 64),
-            j.value("maxChannels", 50),
-            j.value("maxUsersPerChannel", 32),
-            j.value("maxMessageLength", 1000),
-            j.value("maxMessagesPerSecond", 5),
-            j.value("maxEventQueueSize", 1000),
-            j.value("eventProcessingThreadPoolSize", 4),
-            j.value("logLevel", 1),
-            j.value("enableConsoleLogging", true));
+        ServerConfig config;
+        config.fromJson(j);
+        return config;
     }
 
     /// @brief Serializuje ClientConfig do JSON.
@@ -76,14 +64,8 @@ public:
     /// @brief Deserializuje JSON do ClientConfig.
     ClientConfig deserializeClientConfig(const json &j) const
     {
-        return ClientConfig(
-            j.value("serverIp", 0),
-            j.value("serverPort", 8090),
-            j.value("autoReconnect", true),
-            j.value("reconnectIntervalMs", 5000),
-            j.value("maxMessageLength", 1000),
-            j.value("sendOnEnter", true),
-            j.value("messageCacheSize", 100),
-            j.value("showConnectionStatus", true));
+        ClientConfig config;
+        config.fromJson(j);
+        return config;
     }
 };

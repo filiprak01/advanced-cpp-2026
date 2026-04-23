@@ -1,8 +1,12 @@
 #pragma once
 #include <unordered_map>
 #include <common/models/session.hpp>
+#include <nlohmann/json.hpp>
 #include <shared_mutex>
 #include <mutex>
+#include <vector>
+
+using json = nlohmann::json;
 
 /**
  * @brief Repozytorium sesji użytkowników serwera.
@@ -50,6 +54,15 @@ public:
      * @return @c true jeśli sesja istnieje.
      */
     bool sessionExists(const int &sessionId) const;
+
+    /// @brief Zwraca kopię wszystkich sesji.
+    std::vector<Session> getAllSessions() const;
+
+    /// @brief Serializuje repozytorium sesji do JSON.
+    json toJson() const;
+
+    /// @brief Odtwarza repozytorium sesji z JSON.
+    void fromJson(const json &j);
 
 private:
     mutable std::shared_mutex mutex;           ///< Blokada synchronizująca dostęp wielowątkowy.

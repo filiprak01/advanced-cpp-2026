@@ -1,5 +1,7 @@
 #include <server/core/message_manager.hpp>
 
+#include <algorithm>
+
 DomainResult MessageManager::sendMessage(const std::string &content, int fd, int channelId, const std::chrono::steady_clock::time_point &timestamp, Message *createdMessage)
 {
     std::string username = connectionManager.getUsernameFromFd(fd);
@@ -38,6 +40,9 @@ DomainResult MessageManager::sendMessage(const std::string &content, int fd, int
     {
         return DomainResult::domainError(errors::Code::forbidden);
     }
+    Channel channel = channelRepository.getChannel(channelId);
+    channelRepository.updateChannel(channel.addMessageId(message.getId()));
+
     if (createdMessage != nullptr)
     {
         *createdMessage = message;
@@ -54,6 +59,12 @@ DomainResult MessageManager::deleteMessage(std::string requestorName, int messag
     if (message.getSenderName() != requestorName)
     {
         return DomainResult::domainError(errors::Code::forbidden);
+    }
+    auto channelItem = messageMap.find(messageId);
+    if (channelItem != messageMap.end() && channelRepository.channelExists(channelItem->second))
+    {
+        Channel channel = channelRepository.getChannel(channelItem->second);
+        channelRepository.updateChannel(channel.removeMessageId(messageId));
     }
     messageMap.erase(messageId);
     if (!messageRepository.removeMessage(messageId))
@@ -114,4 +125,26 @@ std::optional<int> MessageManager::getChannelIdFromMessage(int messageId) const
         return std::nullopt;
     }
     return messageItem->second;
+}
+
+void MessageManager::rebuildIndexFromRepositories()
+{
+    messageMap.clear();
+    nextMessageId = 1;
+
+    for (const auto &message : messageRepository.getAllMessages())
+    {
+        nextMessageId = std::max(nextMessageId, message.getId() + 1);
+    }
+
+    for (const auto &channel : channelRepository.getAllChannels())
+    {
+        for (int messageId : channel.getMessageIds())
+        {
+            if (messageRepository.messageExists(messageId))
+            {
+                messageMap[messageId] = channel.getChannelId();
+            }
+        }
+    }
 }

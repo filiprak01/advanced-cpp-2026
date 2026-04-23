@@ -268,6 +268,20 @@ std::vector<Channel> ChannelManager::getAllUserChannels(const std::string &userN
     return allChannels;
 }
 
+void ChannelManager::rebuildIndexFromRepository()
+{
+    channelMap.clear();
+    nextChannelId = 1;
+    for (const auto &channel : channelRepository.getAllChannels())
+    {
+        nextChannelId = std::max(nextChannelId, channel.getChannelId() + 1);
+        for (const auto &userName : channel.getUserIds())
+        {
+            channelMap[userName].push_back(channel.getChannelId());
+        }
+    }
+}
+
 DomainResult ChannelManager::deactivateChannel(int channelId)
 {
     if (!channelRepository.channelExists(channelId))

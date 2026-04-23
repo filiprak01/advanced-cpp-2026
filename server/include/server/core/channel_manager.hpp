@@ -17,6 +17,7 @@ public:
     /**
      * @brief Tworzy menedżer kanałów z podanym repozytorium.
      * @param channelRepository Repozytorium kanałów.
+     * @param userRepository    Repozytorium użytkowników.
      */
     ChannelManager(ChannelRepository &channelRepository, UserRepository &userRepository)
         : channelRepository(channelRepository), nextChannelId(1), userRepository(userRepository) {}
@@ -31,6 +32,7 @@ public:
     std::optional<Channel> getChannel(int channelId) const;
     std::vector<Channel> getUserActiveChannels(const std::string &userName);
     std::vector<Channel> getAllUserChannels(const std::string &userName);
+    void rebuildIndexFromRepository();
 
     DomainResult deactivateChannel(int channelId);
 

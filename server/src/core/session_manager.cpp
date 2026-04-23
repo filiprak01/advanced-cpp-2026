@@ -1,5 +1,7 @@
 #include <server/core/session_manager.hpp>
 
+#include <algorithm>
+
 bool SessionManager::isSessionValid(const int &sessionId)
 {
     Session sessionOpt = sessionRepository.getSession(sessionId);
@@ -104,4 +106,16 @@ bool SessionManager::updateUserSession(int fd)
     Session oldSession = sessionRepository.getSession(session_id);
     Session newSession = oldSession.withNewLastActive(std::chrono::steady_clock::now());
     return sessionRepository.updateSession(newSession, session_id);
+}
+
+void SessionManager::rebuildIndexFromRepository()
+{
+    userSessions.clear();
+    nextSessionId = 1;
+
+    for (const auto &session : sessionRepository.getAllSessions())
+    {
+        nextSessionId = std::max(nextSessionId, session.getSessionId() + 1);
+        userSessions[session.getUserName()] = session.getSessionId();
+    }
 }

@@ -29,3 +29,14 @@ TEST_F(SessionRepositoryTest, RemoveSessionDeletesSession) {}
 
 /// @test updateSession aktualizuje dane sesji.
 TEST_F(SessionRepositoryTest, UpdateSessionModifiesSession) {}
+
+TEST_F(SessionRepositoryTest, JsonRoundTripPreservesSessions)
+{
+    repo.addSession(makeSession(3, "alice"));
+
+    SessionRepository restored;
+    restored.fromJson(repo.toJson());
+
+    ASSERT_TRUE(restored.sessionExists(3));
+    EXPECT_EQ(restored.getSession(3).getUserName(), "alice");
+}
